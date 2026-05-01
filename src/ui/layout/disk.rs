@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Style},
+    style::{Color, Style, Modifier},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
@@ -9,101 +9,87 @@ use crate::app::AppState;
 use crate::collector::disk::DiskStats;
 use crate::ui::theme;
 
-/// Returns a compact bar like "[███████░░░] 68.3%"
-fn use_bar(pct: f64, bar_w: usize) -> (String, String, Color) {
-    let filled = ((pct / 100.0) * bar_w as f64).round() as usize;
-    let bar_part = format!("{}{}", "█".repeat(filled), "░".repeat(bar_w - filled));
-    let pct_part = format!("{:5.1}%", pct);
-    let color = if pct >= 90.0 { Color::Red }
-                else if pct >= 70.0 { Color::Yellow }
-                else { Color::Green };
-    (bar_part, pct_part, color)
+fn use_color(pct: f64) -> Color {
+    if pct >= 90.0 { Color::Red }
+    else if pct >= 75.0 { Color::Yellow }
+    else { Color::Green }
+}
+
+fn use_bar(pct: f64, width: usize) -> String {
+    let filled = ((pct / 100.0) * width as f64).round() as usize;
+    format!("[{}{}]", "█".repeat(filled), "░".repeat(width - filled))
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
-    let state  = app.state.read();
-    let disks  = &state.disks;
-    let width  = (area.width as usize).saturating_sub(2).max(40);
+    let state = app.state.read();
+    let disks = &state.disks;
 
-    // Column widths — df -h style
-    // Filesystem | Size | Used | Avail | Use% bar | Mounted on | R/W IOPS
-    let col_fs    = 12usize;
-    let col_size  = 7usize;
-    let col_used  = 7usize;
-    let col_avail = 7usize;
-    let col_bar   = 14usize;  // bar portion
-    let col_pct   = 6usize;
-    let col_iops  = 16usize;  // "R:9999 W:9999"
-    let col_mount = width.saturating_sub(col_fs + col_size + col_used + col_avail + col_bar + col_pct + col_iops + 8);
-    let col_mount = col_mount.max(8).min(24);
+    // df -hT style columns
+    let w_fs   = 20usize;
+    let w_type = 9usize;
+    let w_size = 6usize;
+    let w_used = 6usize;
+    let w_avail= 6usize;
+    let w_bar  = 12usize;
+    let w_pct  = 4usize;
 
     let mut lines: Vec<Line> = Vec::new();
 
     // ── header ─────────────────────────────────────────────────────────────
+    let hdr = Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
     lines.push(Line::from(vec![
-        Span::styled(format!("{:<col_fs$} ", "Filesystem"),   theme::header_style()),
-        Span::styled(format!("{:>col_size$} ", "Size"),        theme::header_style()),
-        Span::styled(format!("{:>col_used$} ", "Used"),        theme::header_style()),
-        Span::styled(format!("{:>col_avail$} ", "Avail"),      theme::header_style()),
-        Span::styled(format!("{:<col_bar$}{:<col_pct$} ", "Use%", ""), theme::header_style()),
-        Span::styled(format!("{:<col_mount$} ", "Mounted on"), theme::header_style()),
-        Span::styled(format!("{:<col_iops$}", "R-IOPS  W-IOPS"), theme::header_style()),
+        Span::styled(format!("{:<w_fs$}  ", "Filesystem"),  hdr),
+        Span::styled(format!("{:<w_type$} ", "Type"),        hdr),
+        Span::styled(format!("{:>w_size$} ", "Size"),        hdr),
+        Span::styled(format!("{:>w_used$} ", "Used"),        hdr),
+        Span::styled(format!("{:>w_avail$} ", "Avail"),      hdr),
+        Span::styled(format!("{:<w_bar$}  ", ""),            Style::default()),
+        Span::styled(format!("{:>w_pct$}   ", "Use%"),       hdr),
+        Span::styled("Mounted on",                           hdr),
     ]));
 
-    // ── separator ──────────────────────────────────────────────────────────
-    lines.push(Line::from(Span::styled(
-        "─".repeat(width.min(area.width as usize)),
-        Style::default().fg(Color::DarkGray),
-    )));
-
-    // ── one row per mounted disk ────────────────────────────────────────────
+    // ── one row per filesystem ─────────────────────────────────────────────
     for disk in disks {
-        let pct  = disk.used_pct();
-        let (bar_part, pct_part, color) = use_bar(pct, col_bar);
+        let pct   = disk.used_pct();
+        let color = use_color(pct);
+        let bar   = use_bar(pct, w_bar);
 
-        // shorten device name: /dev/mapper/ubuntu-root → ubuntu-root
-        let dev_short: String = disk.name.rsplit('/').next()
-            .unwrap_or(&disk.name)
-            .chars().take(col_fs)
-            .collect();
-
-        let total_str = DiskStats::fmt_size(disk.total_kb);
-        let used_str  = DiskStats::fmt_size(disk.used_kb);
-        let avail_str = DiskStats::fmt_size(disk.avail_kb);
-        let mount_str: String = disk.mount.chars().take(col_mount).collect();
-        let iops_str  = format!("{:<7} {:<7}",
-            format!("R:{}", disk.read_iops),
-            format!("W:{}", disk.write_iops),
-        );
+        let fs_name = crate::ui::truncate(&disk.name, w_fs);
+        let fs_type = crate::ui::truncate(&disk.fs_type, w_type - 1);
+        let size_s  = DiskStats::fmt_size(disk.total_kb);
+        let used_s  = DiskStats::fmt_size(disk.used_kb);
+        let avail_s = DiskStats::fmt_size(disk.avail_kb);
 
         lines.push(Line::from(vec![
-            Span::styled(format!("{:<col_fs$} ", dev_short),         theme::dim_style()),
-            Span::raw(format!("{:>col_size$} ", total_str)),
-            Span::styled(format!("{:>col_used$} ", used_str),        Style::default().fg(color)),
-            Span::raw(format!("{:>col_avail$} ", avail_str)),
-            Span::styled(bar_part,                                   Style::default().fg(color)),
-            Span::styled(format!(" {:<col_pct$} ", pct_part),       Style::default().fg(color)),
-            Span::styled(format!("{:<col_mount$} ", mount_str),      theme::dim_style()),
-            Span::styled(iops_str,                                   Style::default().fg(Color::Cyan)),
+            Span::styled(format!("{:<w_fs$}  ", fs_name),  theme::dim_style()),
+            Span::raw(   format!("{:<w_type$} ", fs_type)),
+            Span::raw(   format!("{:>w_size$} ", size_s)),
+            Span::styled(format!("{:>w_used$} ", used_s),  Style::default().fg(color)),
+            Span::raw(   format!("{:>w_avail$} ", avail_s)),
+            Span::styled(format!("{} ", bar),              Style::default().fg(color)),
+            Span::styled(format!("{:>w_pct$}%  ", pct as u64), Style::default().fg(color).add_modifier(Modifier::BOLD)),
+            Span::styled(disk.mount.clone(),               theme::dim_style()),
         ]));
 
-        // Sub-row: FS type + throughput
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  {:<6}  r:{:<10} w:{:<10}",
-                    disk.fs_type,
-                    DiskStats::fmt_speed(disk.read_bps),
-                    DiskStats::fmt_speed(disk.write_bps),
+        // I/O sub-row only when there is activity
+        if disk.read_bps > 0 || disk.write_bps > 0 || disk.read_iops > 0 || disk.write_iops > 0 {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("  r:{:<10} w:{:<10}  riops:{:<5} wiops:{}",
+                        DiskStats::fmt_speed(disk.read_bps),
+                        DiskStats::fmt_speed(disk.write_bps),
+                        disk.read_iops,
+                        disk.write_iops,
+                    ),
+                    Style::default().fg(Color::Cyan),
                 ),
-                theme::dim_style(),
-            ),
-        ]));
+            ]));
+        }
     }
 
     let block = Block::default()
-        .title(Span::styled(" Disk  [df -h] ", theme::title_style()))
+        .title(Span::styled(" Disk ", theme::title_style()))
         .borders(Borders::ALL);
 
     f.render_widget(Paragraph::new(lines).block(block), area);
 }
-

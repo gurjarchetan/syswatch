@@ -45,22 +45,53 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     // ── summary bar ─────────────────────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("Tasks: ", theme::dim_style()),
-        Span::styled(format!("{} total  ", summary.total), theme::header_style()),
-        Span::styled("R:", theme::dim_style()),
-        Span::styled(format!("{} ", summary.running), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-        Span::styled("  S:", theme::dim_style()),
-        Span::styled(format!("{} ", summary.sleeping), Style::default().fg(Color::Cyan)),
-        Span::styled("  Z:", theme::dim_style()),
-        Span::styled(format!("{} ",
-            summary.zombie),
+        Span::styled(format!("{}", summary.total),   theme::header_style()),
+        Span::styled("  ● ", theme::dim_style()),
+        Span::styled(format!("Run:{}", summary.running),
+            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled("  ", Style::default()),
+        Span::styled(format!("Sleep:{}", summary.sleeping),
+            Style::default().fg(Color::Cyan)),
+        Span::styled("  ", Style::default()),
+        Span::styled(format!("Idle:{}", summary.other),
+            Style::default().fg(Color::DarkGray)),
+        Span::styled("  ", Style::default()),
+        Span::styled(format!("Stop:{}", summary.stopped),
+            Style::default().fg(Color::Yellow)),
+        Span::styled("  ", Style::default()),
+        Span::styled(
+            format!("Zombie:{}", summary.zombie),
             if summary.zombie > 0 { Style::default().fg(Color::Red).add_modifier(Modifier::BOLD) }
             else { Style::default().fg(Color::DarkGray) }
         ),
-        Span::styled("  T:", theme::dim_style()),
-        Span::styled(format!("{} ", summary.stopped),  Style::default().fg(Color::Yellow)),
-        Span::styled("  O:", theme::dim_style()),
-        Span::styled(format!("{}", summary.other), Style::default().fg(Color::DarkGray)),
     ]));
+
+    // ── sort toolbar: shows which column is active ───────────────────────
+    let sort_btn = |label: &'static str, active: bool| -> Span<'static> {
+        if active {
+            Span::styled(
+                format!("[{}▼]", label),
+                Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD),
+            )
+        } else {
+            Span::styled(
+                format!("[{}]", label),
+                Style::default().fg(Color::DarkGray),
+            )
+        }
+    };
+    lines.push(Line::from(vec![
+        Span::styled("Sort: ", theme::dim_style()),
+        sort_btn("CPU",  app.sort_col == SortCol::Cpu),
+        Span::raw(" "),
+        sort_btn("MEM",  app.sort_col == SortCol::Mem),
+        Span::raw(" "),
+        sort_btn("PID",  app.sort_col == SortCol::Pid),
+        Span::raw(" "),
+        sort_btn("NAME", app.sort_col == SortCol::Name),
+        Span::styled("  f=cycle  /=filter  k=kill(arm)  K=SIGKILL  Esc=cancel", theme::dim_style()),
+    ]));
+
 
     // ── column header ────────────────────────────────────────────────────────
     lines.push(Line::from(vec![
@@ -75,8 +106,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     let sep_w = (area.width as usize).saturating_sub(2);
     lines.push(Line::from(Span::styled("─".repeat(sep_w), Style::default().fg(Color::DarkGray))));
 
-    // header rows above = 3; border = 2 → need to subtract 5 total
-    let visible_rows = (area.height as usize).saturating_sub(5);
+    // header rows above = 4 (summary+toolbar+colhdr+sep); border = 2 → subtract 6
+    let visible_rows = (area.height as usize).saturating_sub(6);
     let scroll_off   = app.scroll_offset;
 
     for (idx, proc) in procs.iter().skip(scroll_off).take(visible_rows).enumerate() {
@@ -113,25 +144,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
         ]));
     }
 
-    // Kill-confirm hint at bottom if active
+    // Kill-confirm hint replaces the last visible row
     if app.kill_confirm {
         lines.push(Line::from(vec![
             Span::styled(
-                "  Press k again to send SIGTERM, K for SIGKILL, Esc to cancel  ",
+                "  ⚠  k=SIGTERM  K=SIGKILL  Esc=cancel  ",
                 Style::default().fg(Color::White).bg(Color::Red).add_modifier(Modifier::BOLD),
             ),
         ]));
     } else if app.filter_mode {
         lines.push(Line::from(vec![
-            Span::styled(format!("  Filter: {}▋ ", app.filter_text), theme::header_style()),
+            Span::styled(format!("  Filter ▸ {}▋", app.filter_text),
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         ]));
     }
 
-    let title = format!(
-        " Processes ({}) [/filter  f:sort({})  k:kill] ",
-        procs.len(),
-        app.sort_col.label()
-    );
+    let title = format!(" Processes ({}) ", procs.len());
 
     let block = Block::default()
         .title(Span::styled(title, theme::title_style()))
