@@ -16,7 +16,7 @@ fn use_color(pct: f64) -> Color {
 }
 
 fn use_bar(pct: f64, width: usize) -> String {
-    let filled = ((pct / 100.0) * width as f64).round() as usize;
+    let filled = ((pct / 100.0) * width as f64).round().clamp(0.0, width as f64) as usize;
     format!("[{}{}]", "█".repeat(filled), "░".repeat(width - filled))
 }
 
@@ -91,5 +91,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
         .title(Span::styled(" Disk ", theme::title_style()))
         .borders(Borders::ALL);
 
-    f.render_widget(Paragraph::new(lines).block(block), area);
+    let scroll_offset = app.scroll_offset as u16;
+    f.render_widget(
+        Paragraph::new(lines).block(block).scroll((scroll_offset, 0)),
+        area,
+    );
 }

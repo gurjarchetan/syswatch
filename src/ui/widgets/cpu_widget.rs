@@ -27,9 +27,9 @@ fn core_line(idx: usize, usage: f32, freq_mhz: u64) -> Line<'static> {
     let filled = ((usage / 100.0) * bar_w as f32).round().clamp(0.0, bar_w as f32) as usize;
     let color  = gradient_color(usage);
     let freq_str = if freq_mhz >= 1000 {
-        format!("{:.1}G", freq_mhz as f64 / 1000.0)
+        format!("{:.1}GHz", freq_mhz as f64 / 1000.0)
     } else if freq_mhz > 0 {
-        format!("{}M", freq_mhz)
+        format!("{}MHz", freq_mhz)
     } else {
         String::new()
     };
@@ -40,7 +40,7 @@ fn core_line(idx: usize, usage: f32, freq_mhz: u64) -> Line<'static> {
         Span::styled("░".repeat(bar_w - filled),   Style::default().fg(Color::DarkGray)),
         Span::raw("▏ "),
         Span::styled(format!("{:5.1}%", usage), Style::default().fg(color).add_modifier(Modifier::BOLD)),
-        Span::styled(format!(" {:>5}", freq_str), theme::dim_style()),
+        Span::styled(format!(" {:>7}", freq_str), theme::dim_style()),
     ])
 }
 

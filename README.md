@@ -23,14 +23,16 @@
 │CPU×16 ▕████████████░░░░░░░░░░░░░░░░░░▏  41.2%  13th Gen i5-13500H││RAM  [█████████████░░░░░░░]  66.5%    │
 │Load avg 0.42 1m  0.51 5m  0.38 15m                                ││     9.9 GiB / 14.9 GiB (Free: 1.3G) │
 │────────────────────────────────────────────────────────────────── ││Swap [░░░░░░░░░░░░░░░░░░░░]   0.0%    │
-│C0  ▕████████░░░░▏  55.1%  2.4G  │C1  ▕█████████░░░░▏  62.3%  2.4G│└─────────────────────────────────────┘
-│C2  ▕███████░░░░░▏  48.0%  2.1G  │C3  ▕██████░░░░░░▏   41.2%  1.9G│┌ Network ────────────────────────────┐
+│C0  ▕████████░░░░▏  55.1%  2.4GHz │C1  ▕█████████░░░░▏  62.3%  2.4GHz│└─────────────────────────────────────┘
+│C2  ▕███████░░░░░▏  48.0%  2.1GHz │C3  ▕██████░░░░░░▏   41.2%  1.9GHz│┌ Network ────────────────────────────┐
 │────────────────────────────────────────────────────────────────── ││▲ TX  1.2 KB/s  Total: 118.6 KiB     │
 │100%│                                                 ▄▅▆▇         ││▼ RX  4.7 KB/s  Total:  71.3 KiB     │
 │ 50%│                                   ▂▃  ▂▁▃▄▅▅▆▇████         │└─────────────────────────────────────┘
-│  0%│▁▁▁▁▁▁▁▁▁▁▁▁▁▂▁▂▁▂▃▃▃▄▃▃▄▄▄▄▅▅▅▅▅▆████████████████         │
-└───────────────────────────────────────────────────────────────────┘
- [q] Quit  [Tab] Switch tab  [↑↓] Scroll
+│  0%│▁▁▁▁▁▁▁▁▁▁▁▁▁▂▁▂▁▂▃▃▃▄▃▃▄▄▄▄▅▅▅▅▅▆████████████████         │┌ Disk ───────────────────────────────┐
+└───────────────────────────────────────────────────────────────────┘│[██████░░░░]  62%  468.0G  /          │
+                                                                      │[░░░░░░░░░░]   1%   1.1G  /boot/efi  │
+                                                                      └─────────────────────────────────────┘
+ [q] Quit  [Tab] Switch tab  [↑↓] Scroll  [F4] Full disk details
 ```
 
 ---
@@ -39,11 +41,33 @@
 
 | Panel | What you get |
 |---|---|
-| **CPU** | Per-core bars with GHz frequency, global gauge, load average (1m/5m/15m), rolling history graph |
+| **CPU** | Per-core bars with clock frequency (`2.4GHz` · `800MHz`), global gauge, load average (1m/5m/15m), rolling history graph |
 | **Memory** | Physical RAM — used / cached / free breakdown + Swap, colour-coded progress bars |
-| **Disk** | `df -hT` style table — Filesystem, Type, Size, Used, Avail, Use% bar, Mounted on; real-time IOPS + throughput |
+| **Disk** | `df -hT` style table — Filesystem, Type, Size, Used, Avail, Use% bar, Mounted on; real-time IOPS + throughput per mount point |
 | **Network** | Per-interface RX/TX bandwidth, cumulative totals since launch, sparklines |
 | **Processes** | Searchable, sortable table — PID, Name, User, CPU%, MEM%, Threads, Status (Running/Sleeping/Zombie/…) |
+
+**Disk tab — mount-point overview**
+
+```
+ ◈ SysWatch | F1 Overview   F2 Processes   F3 Network  [F4 Disk]
+
+┌ Disk ──────────────────────────────────────────────────────────────────────────┐
+│Filesystem             Type       Size   Used  Avail                    Use% Mounted on │
+│/dev/sda2              ext4       468G   134G   310G  [████████░░░░]     29%  /         │
+│  r:0B/s     w:1.2M/s   riops:0   wiops:12                                              │
+│/dev/sda1              vfat       511M   6.1M   505M  [░░░░░░░░░░░░]      1%  /boot/efi │
+│/dev/sdb1              ext4       931G   520G   364G  [██████░░░░░░]     56%  /home     │
+│  r:4.5M/s   w:0B/s     riops:8   wiops:0                                               │
+│tmpfs                  tmpfs       16G   2.3G    14G  [██░░░░░░░░░░]     14%  /dev/shm  │
+│/dev/nvme0n1p3         btrfs      200G    48G   152G  [███░░░░░░░░░]     24%  /var      │
+└────────────────────────────────────────────────────────────────────────────────┘
+ [q] Quit  [Tab] Switch tab  [↑↓] Scroll
+```
+
+Mount points are discovered automatically. The I/O sub-row (`r:` / `w:` / `riops:` / `wiops:`) only appears when a device has active throughput.
+
+---
 
 **Visual highlights**
 - Block-character history graph (`▁▂▃▄▅▆▇█`) with Y-axis labels — instantly readable CPU trend
@@ -62,10 +86,10 @@
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.1.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.2.0_amd64.deb
 
 # Install
-sudo dpkg -i syswatch_0.1.0_amd64.deb
+sudo dpkg -i syswatch_0.2.0_amd64.deb
 
 # Run
 syswatch
@@ -205,7 +229,7 @@ cargo install cargo-deb
 # Build .deb
 cargo deb
 
-# Output: target/debian/syswatch_0.1.0_amd64.deb
+# Output: target/debian/syswatch_0.2.0_amd64.deb
 ```
 
 ---

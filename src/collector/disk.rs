@@ -1,5 +1,5 @@
-use sysinfo::Disks;
 use std::collections::HashMap;
+use std::ffi::CString;
 
 #[derive(Default, Clone)]
 pub struct DiskStats {
@@ -22,7 +22,7 @@ pub struct DiskStats {
 impl DiskStats {
     pub fn used_pct(&self) -> f64 {
         if self.total_kb == 0 { return 0.0; }
-        self.used_kb as f64 / self.total_kb as f64 * 100.0
+        (self.used_kb as f64 / self.total_kb as f64 * 100.0).min(100.0)
     }
     pub fn fmt_speed(bps: u64) -> String {
         if bps >= 1_073_741_824 { format!("{:.1}G/s", bps as f64 / 1_073_741_824.0) }
@@ -67,62 +67,117 @@ fn read_diskstats() -> HashMap<String, RawIo> {
     map
 }
 
-/// Derive the kernel device name from a mount-point by matching sysinfo Disk
-/// against /proc/mounts — or just strip the last path component.
+/// Strip the last path component to get the kernel device name.
 fn dev_from_name(raw_name: &str) -> String {
-    // sysinfo gives the full path like /dev/sda1 on Linux
     std::path::Path::new(raw_name)
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| raw_name.to_string())
 }
 
-/// State carried between ticks for delta calculation.
+/// Filesystem types to skip completely.
+const SKIP_FS: &[&str] = &[
+    "squashfs", "proc", "sysfs", "devpts", "cgroup", "cgroup2",
+    "pstore", "bpf", "tracefs", "debugfs", "fusectl", "securityfs",
+    "hugetlbfs", "mqueue", "configfs", "nsfs", "overlay", "autofs",
+    "devtmpfs", "efivarfs",
+];
+
+/// Mount path prefixes to skip.
+const SKIP_MOUNT_PREFIX: &[&str] = &[
+    "/run/credentials/",
+    "/proc/",
+    "/sys/",
+    "/snap/",
+];
+
+/// For tmpfs, only show mounts that are meaningful to a user.
+fn is_useful_tmpfs(mount: &str) -> bool {
+    matches!(mount, "/dev/shm" | "/tmp" | "/run")
+        || mount.starts_with("/run/user/")
+}
+
+/// State carried between ticks for I/O delta calculation.
 #[derive(Default, Clone)]
 pub struct DiskIoState {
     prev: HashMap<String, RawIo>,
 }
 
-pub fn collect(disks: &Disks, io_state: &mut DiskIoState) -> Vec<DiskStats> {
+/// Read /proc/mounts and call statvfs for each relevant mount point.
+/// This surfaces real block devices + useful tmpfs entries.
+pub fn collect(_unused: &sysinfo::Disks, io_state: &mut DiskIoState) -> Vec<DiskStats> {
     let current = read_diskstats();
-    // 500 ms interval → multiply delta by 2 to get per-second
     const INTERVAL_MS: u64 = 500;
     const SECTOR_SIZE: u64 = 512;
 
-    let result = disks.iter().map(|d| {
-        let total = d.total_space() / 1024;
-        let avail = d.available_space() / 1024;
-        let used  = total.saturating_sub(avail);
+    let mounts_data = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
+    let mut result = Vec::new();
 
-        let dev_name = dev_from_name(&d.name().to_string_lossy());
+    for line in mounts_data.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 { continue; }
+        let dev   = parts[0];
+        let mount = parts[1];
+        let fs    = parts[2];
+
+        // Skip unwanted fs types
+        if SKIP_FS.iter().any(|&f| f == fs) { continue; }
+
+        // Skip unwanted mount prefixes
+        if SKIP_MOUNT_PREFIX.iter().any(|&p| mount.starts_with(p)) { continue; }
+
+        // For tmpfs, only include useful mounts
+        if fs == "tmpfs" && !is_useful_tmpfs(mount) { continue; }
+
+        // Call statvfs to get disk space
+        let c_mount = match CString::new(mount) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+        let ret = unsafe { libc::statvfs(c_mount.as_ptr(), &mut stat) };
+        if ret != 0 { continue; }
+
+        let bsz = stat.f_frsize as u64;
+        if bsz == 0 { continue; }
+
+        let total_kb = stat.f_blocks * bsz / 1024;
+        let free_kb  = stat.f_bfree  * bsz / 1024;
+        let avail_kb = stat.f_bavail * bsz / 1024;
+        let used_kb  = total_kb.saturating_sub(free_kb);
+
+        if total_kb == 0 { continue; }
+
+        let dev_name = dev_from_name(dev);
         let (read_bps, write_bps, read_iops, write_iops) =
             if let (Some(prev), Some(cur)) = (io_state.prev.get(&dev_name), current.get(&dev_name)) {
                 let d_reads  = cur.reads.saturating_sub(prev.reads);
                 let d_writes = cur.writes.saturating_sub(prev.writes);
                 let d_rsect  = cur.read_sectors.saturating_sub(prev.read_sectors);
                 let d_wsect  = cur.write_sectors.saturating_sub(prev.write_sectors);
-                let bps_r = d_rsect * SECTOR_SIZE * 1000 / INTERVAL_MS;
-                let bps_w = d_wsect * SECTOR_SIZE * 1000 / INTERVAL_MS;
-                let iops_r = d_reads  * 1000 / INTERVAL_MS;
-                let iops_w = d_writes * 1000 / INTERVAL_MS;
-                (bps_r, bps_w, iops_r, iops_w)
+                (
+                    d_rsect * SECTOR_SIZE * 1000 / INTERVAL_MS,
+                    d_wsect * SECTOR_SIZE * 1000 / INTERVAL_MS,
+                    d_reads  * 1000 / INTERVAL_MS,
+                    d_writes * 1000 / INTERVAL_MS,
+                )
             } else {
                 (0, 0, 0, 0)
             };
 
-        DiskStats {
-            name:       d.name().to_string_lossy().to_string(),
-            mount:      d.mount_point().to_string_lossy().to_string(),
-            fs_type:    d.file_system().to_string_lossy().to_string(),
-            total_kb:   total,
-            used_kb:    used,
-            avail_kb:   avail,
+        result.push(DiskStats {
+            name: dev.to_string(),
+            mount: mount.to_string(),
+            fs_type: fs.to_string(),
+            total_kb,
+            used_kb,
+            avail_kb,
             read_bps,
             write_bps,
             read_iops,
             write_iops,
-        }
-    }).collect();
+        });
+    }
 
     io_state.prev = current;
     result
