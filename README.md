@@ -52,20 +52,61 @@
 ```
  ◈ SysWatch | F1 Overview   F2 Processes   F3 Network  [F4 Disk]
 
-┌ Disk ──────────────────────────────────────────────────────────────────────────┐
+┌ Disk ──────────────────────────────────────────────────────────────────────────────────┐
 │Filesystem             Type       Size   Used  Avail                    Use% Mounted on │
-│/dev/sda2              ext4       468G   134G   310G  [████████░░░░]     29%  /         │
+│/dev/nvme0n1p2         ext4       468G   292G   152G  [████████░░░░]     62%  /         │
 │  r:0B/s     w:1.2M/s   riops:0   wiops:12                                              │
-│/dev/sda1              vfat       511M   6.1M   505M  [░░░░░░░░░░░░]      1%  /boot/efi │
-│/dev/sdb1              ext4       931G   520G   364G  [██████░░░░░░]     56%  /home     │
-│  r:4.5M/s   w:0B/s     riops:8   wiops:0                                               │
+│/dev/nvme0n1p1         vfat       1.1G   6.4M   1.1G  [░░░░░░░░░░░░]      1%  /boot/efi│
 │tmpfs                  tmpfs       16G   2.3G    14G  [██░░░░░░░░░░]     14%  /dev/shm  │
-│/dev/nvme0n1p3         btrfs      200G    48G   152G  [███░░░░░░░░░]     24%  /var      │
-└────────────────────────────────────────────────────────────────────────────────┘
+│tmpfs                  tmpfs      1.5G   2.9M   1.5G  [░░░░░░░░░░░░]      1%  /run      │
+│tmpfs                  tmpfs      7.5G   9.1M   7.5G  [░░░░░░░░░░░░]      1%  /tmp      │
+└────────────────────────────────────────────────────────────────────────────────────────┘
  [q] Quit  [Tab] Switch tab  [↑↓] Scroll
 ```
 
-Mount points are discovered automatically. The I/O sub-row (`r:` / `w:` / `riops:` / `wiops:`) only appears when a device has active throughput.
+Mount points are discovered automatically via `/proc/mounts`. The I/O sub-row (`r:` / `w:` / `riops:` / `wiops:`) only appears when a device has active throughput.
+
+---
+
+**Processes tab (F2)**
+
+```
+ ◈ SysWatch | F1 Overview  [F2 Processes]  F3 Network   F4 Disk
+
+┌ Processes (312) ──────────────────────────────────────────────────────────────────────┐
+│Tasks: 312  ●  Run:3  Sleep:289  Idle:18  Stop:0  Zombie:0                             │
+│Sort: [CPU▼] [MEM] [PID] [NAME]  f=cycle  /=filter  k=kill(arm)  K=SIGKILL  Esc=cancel│
+│    PID  NAME                  USER        CPU%     MEM%  ST   THR STATUS              │
+│──────────────────────────────────────────────────────────────────────────────────────  │
+│ 246131  code                  chetan       14.30     2.10  S     35 Sleeping           │
+│ 246089  chrome                chetan        8.12     3.45  S     42 Sleeping           │
+│   1823  Xorg                  root          3.90     0.88  S     11 Sleeping           │
+│ 246401  syswatch              chetan        2.10     0.12  R      4 Running            │
+│   9871  pulseaudio            chetan        0.80     0.20  S      5 Sleeping           │
+│    912  systemd-journald      root          0.30     0.15  S      1 Sleeping           │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+> Type `/` to filter by name in real time · `f` cycles sort: CPU→MEM→PID→Name · `k` to arm kill
+
+---
+
+**Network tab (F3)**
+
+```
+ ◈ SysWatch | F1 Overview   F2 Processes  [F3 Network]  F4 Disk
+
+┌ Network Deep Dive ────────────────────────────────────────────────────────────────────┐
+│▼ Download   4.7 KB/s  Total:  71.3 KiB                                                │
+│▲ Upload     1.2 KB/s  Total: 118.6 KiB                                                │
+│                                                                                        │
+│RX History                              TX History                                      │
+│▁▁▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▃▄▅▆▇██               ▁▁▁▁▂▃▂▁▁▂▃▄▃▂▃▄▅▄▃▂▁▁▁▁▁                    │
+│                                                                                        │
+│  wlp2s0      RX      4.7 KB/s  TX      1.2 KB/s                                       │
+│  lo          RX      0.0 B/s   TX      0.0 B/s                                        │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -86,10 +127,10 @@ Mount points are discovered automatically. The I/O sub-row (`r:` / `w:` / `riops
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.2.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.3.0_amd64.deb
 
 # Install
-sudo dpkg -i syswatch_0.2.0_amd64.deb
+sudo dpkg -i syswatch_0.3.0_amd64.deb
 
 # Run
 syswatch
@@ -134,6 +175,35 @@ syswatch
 yay -S syswatch-bin
 # or
 paru -S syswatch-bin
+```
+
+---
+
+## CLI Usage
+
+```
+USAGE:
+    syswatch [OPTIONS]
+
+OPTIONS:
+    -h, --help              Show this help message and exit
+    -V, --version           Show version and exit
+    -t, --tab <TAB>         Start on a specific tab
+                              overview   (default)
+                              processes
+                              network
+                              disk
+    -i, --interval <MS>     Data-collection interval in ms (default: 500, min: 100)
+```
+
+**Examples**
+
+```bash
+syswatch                         # Start on Overview tab
+syswatch --tab processes         # Jump straight to Processes
+syswatch --tab disk              # Jump straight to Disk
+syswatch --interval 250          # Refresh every 250 ms
+syswatch -t network -i 1000      # Network tab, 1 s interval
 ```
 
 ---
@@ -229,7 +299,7 @@ cargo install cargo-deb
 # Build .deb
 cargo deb
 
-# Output: target/debian/syswatch_0.2.0_amd64.deb
+# Output: target/debian/syswatch_0.3.0_amd64.deb
 ```
 
 ---

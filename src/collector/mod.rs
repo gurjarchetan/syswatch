@@ -34,8 +34,8 @@ pub struct SystemState {
 pub type SharedState = Arc<RwLock<SystemState>>;
 
 /// Spawn the background data-collection task.
-/// Updates every 500 ms; each module reads /proc or uses sysinfo.
-pub async fn spawn_collector(state: SharedState) -> Result<()> {
+/// `interval_ms` controls how often data is refreshed (default 500, min 100).
+pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()> {
     let mut sys = sysinfo::System::new_all();
     let mut disks_tracker = sysinfo::Disks::new_with_refreshed_list();
     let mut nets_tracker = sysinfo::Networks::new_with_refreshed_list();
@@ -52,7 +52,7 @@ pub async fn spawn_collector(state: SharedState) -> Result<()> {
         );
     }
 
-    let mut ticker = interval(Duration::from_millis(500));
+    let mut ticker = interval(Duration::from_millis(interval_ms.max(100)));
 
     loop {
         ticker.tick().await;
