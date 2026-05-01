@@ -29,9 +29,49 @@ pub struct SystemState {
     pub uptime_secs: u64,
     pub hostname: String,
     pub os_name: String,
+    pub private_ip: String,
+    pub public_ip: String,
 }
 
 pub type SharedState = Arc<RwLock<SystemState>>;
+
+/// Derive the primary private IP by routing-table trick (no packets sent).
+fn get_private_ip() -> String {
+    use std::net::UdpSocket;
+    UdpSocket::bind("0.0.0.0:0")
+        .ok()
+        .and_then(|s| {
+            s.connect("8.8.8.8:80").ok()?;
+            s.local_addr().ok()
+        })
+        .map(|a| a.ip().to_string())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// Fetch the public IP from api.ipify.org via a raw HTTP/1.0 request.
+async fn fetch_public_ip() -> String {
+    use tokio::net::TcpStream;
+    use tokio::io::{AsyncWriteExt, AsyncReadExt};
+
+    let result: anyhow::Result<String> = async {
+        let mut stream = tokio::time::timeout(
+            Duration::from_secs(8),
+            TcpStream::connect("api.ipify.org:80"),
+        ).await??;
+        stream.write_all(b"GET / HTTP/1.0\r\nHost: api.ipify.org\r\nConnection: close\r\n\r\n").await?;
+        let mut buf = Vec::new();
+        tokio::time::timeout(
+            Duration::from_secs(8),
+            stream.read_to_end(&mut buf),
+        ).await??;
+        let resp = String::from_utf8_lossy(&buf);
+        let body = resp.split("\r\n\r\n").nth(1).unwrap_or("").trim().to_string();
+        anyhow::ensure!(!body.is_empty(), "empty response");
+        Ok(body)
+    }.await;
+
+    result.unwrap_or_else(|_| "unavailable".to_string())
+}
 
 /// Spawn the background data-collection task.
 /// `interval_ms` controls how often data is refreshed (default 500, min 100).
@@ -50,6 +90,17 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
             sysinfo::System::name().unwrap_or_default(),
             sysinfo::System::os_version().unwrap_or_default()
         );
+        s.private_ip = get_private_ip();
+        s.public_ip  = "fetching…".to_string();
+    }
+
+    // Fetch public IP in background — updates state when ready.
+    {
+        let state_clone = Arc::clone(&state);
+        tokio::spawn(async move {
+            let ip = fetch_public_ip().await;
+            state_clone.write().public_ip = ip;
+        });
     }
 
     let mut ticker = interval(Duration::from_millis(interval_ms.max(100)));

@@ -15,9 +15,41 @@
 
 ---
 
+## One command replaces all of these
+
+```bash
+# Before — you needed all of these:
+htop                  # CPU & processes
+free -h               # memory & swap
+df -hT                # disk usage per mount point
+uptime                # load average & system uptime
+cat /etc/os-release   # OS & kernel version
+iftop / nload         # live network traffic
+ip addr               # private IP address
+curl ifconfig.me      # public IP address
+
+# With SysWatch — one command shows everything, live:
+syswatch
+```
+
+| Old command | SysWatch equivalent |
+|---|---|
+| `htop` | F2 Processes — PID, CPU%, MEM%, sort, kill |
+| `free -h` | F1 Overview → Memory panel — RAM + Swap bars |
+| `df -hT` | F4 Disk — filesystem, type, size, used, avail, IOPS |
+| `uptime` | Title bar — `up 02:14:07` + load avg in CPU panel |
+| `cat /etc/os-release` | Title bar — OS name + version |
+| `iftop` / `nload` | F3 Network — per-interface RX/TX + sparklines |
+| `ip addr` | F1 Overview → Private IP bar (top) |
+| `curl ifconfig.me` | F1 Overview → Public IP bar (top) |
+
+---
+
 ```
  ◈ SysWatch | chetan-pc | Ubuntu 26.04  up 02:14:07 | 14:32:01
  F1 Overview   F2 Processes   F3 Network   F4 Disk
+
+  ⬡ Private IP: 192.168.1.100   ⬡ Public IP:  203.0.113.42
 
 ┌ CPU ──────────────────────────────────────────────────────────────┐┌ Memory ─────────────────────────────┐
 │CPU×16 ▕████████████░░░░░░░░░░░░░░░░░░▏  41.2%  13th Gen i5-13500H││RAM  [█████████████░░░░░░░]  66.5%    │
@@ -46,6 +78,7 @@
 | **Disk** | `df -hT` style table — Filesystem, Type, Size, Used, Avail, Use% bar, Mounted on; real-time IOPS + throughput per mount point |
 | **Network** | Per-interface RX/TX bandwidth, cumulative totals since launch, sparklines |
 | **Processes** | Searchable, sortable table — PID, Name, User, CPU%, MEM%, Threads, Status (Running/Sleeping/Zombie/…) |
+| **IP Info** | Private IP (primary interface) + Public IP (fetched once at startup) displayed on the Overview page |
 
 **Disk tab — mount-point overview**
 
@@ -116,6 +149,7 @@ Mount points are discovered automatically via `/proc/mounts`. The I/O sub-row (`
 - Load average colour-coded vs core count — turns red when system is overloaded
 - Process state summary bar: **Run / Sleep / Idle / Stop / Zombie** counts at a glance
 - Two-step kill: `k` arms (row highlights red) → `k` sends SIGTERM · `K` sends SIGKILL
+- **Private + Public IP** shown at a glance on the Overview page — no more `ip addr` / `curl ifconfig.me`
 - Mouse scroll support
 - Responsive layout — adapts to any terminal width/height
 
@@ -127,10 +161,10 @@ Mount points are discovered automatically via `/proc/mounts`. The I/O sub-row (`
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.3.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.4.0_amd64.deb
 
 # Install
-sudo dpkg -i syswatch_0.3.0_amd64.deb
+sudo dpkg -i syswatch_0.4.0_amd64.deb
 
 # Run
 syswatch
@@ -146,14 +180,14 @@ sudo snap install syswatch
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.3.0-1.x86_64.rpm
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.4.0-1.x86_64.rpm
 
 # Install (Amazon Linux / RHEL / CentOS / Fedora)
-sudo rpm -i syswatch-0.3.0-1.x86_64.rpm
+sudo rpm -i syswatch-0.4.0-1.x86_64.rpm
 # or with dnf (Fedora / RHEL 8+ / Amazon Linux 2023)
-sudo dnf install ./syswatch-0.3.0-1.x86_64.rpm
+sudo dnf install ./syswatch-0.4.0-1.x86_64.rpm
 # or with yum (CentOS 7 / Amazon Linux 2)
-sudo yum install ./syswatch-0.3.0-1.x86_64.rpm
+sudo yum install ./syswatch-0.4.0-1.x86_64.rpm
 
 # Run
 syswatch
@@ -315,7 +349,7 @@ input/
 ```bash
 cargo install cargo-deb
 cargo deb
-# Output: target/debian/syswatch_0.3.0_amd64.deb
+# Output: target/debian/syswatch_0.4.0_amd64.deb
 ```
 
 **RHEL / CentOS / Amazon Linux / Fedora (`.rpm`)**
@@ -323,7 +357,7 @@ cargo deb
 cargo install cargo-generate-rpm
 cargo build --release
 cargo generate-rpm
-# Output: target/generate-rpm/syswatch-0.3.0-1.x86_64.rpm
+# Output: target/generate-rpm/syswatch-0.4.0-1.x86_64.rpm
 ```
 
 ---

@@ -5,12 +5,20 @@ use ratatui::{
 use crate::app::AppState;
 use crate::ui::widgets;
 
-/// Overview: CPU (left) | Memory + Network + Disk summary (right)
+/// Overview: IP bar (top 1 line) | CPU (left) | Memory + Network + Disk summary (right)
 pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
+    // Split vertically: 1-line IP strip + rest
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    render_ip_bar(f, rows[0], app);
+
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(area);
+        .split(rows[1]);
 
     let right_rows = Layout::default()
         .direction(Direction::Vertical)
@@ -25,6 +33,26 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     widgets::mem_widget::render(f, right_rows[0], app);
     render_net_summary(f, right_rows[1], app);
     render_disk_summary(f, right_rows[2], app);
+}
+
+fn render_ip_bar(f: &mut Frame, area: Rect, app: &AppState) {
+    use ratatui::{
+        layout::Alignment,
+        text::{Line, Span},
+        widgets::Paragraph,
+    };
+    use crate::ui::theme;
+
+    let state = app.state.read();
+
+    let line = Line::from(vec![
+        Span::styled("  ⬡ Private IP: ", theme::dim_style()),
+        Span::styled(state.private_ip.clone(), theme::header_style()),
+        Span::styled("   ⬡ Public IP:  ", theme::dim_style()),
+        Span::styled(state.public_ip.clone(), theme::header_style()),
+    ]);
+
+    f.render_widget(Paragraph::new(line).alignment(Alignment::Left), area);
 }
 
 fn render_net_summary(f: &mut Frame, area: Rect, app: &AppState) {
