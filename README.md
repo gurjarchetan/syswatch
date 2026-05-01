@@ -19,16 +19,18 @@
  ◈ SysWatch | chetan-pc | Ubuntu 26.04  up 02:14:07 | 14:32:01
  F1 Overview   F2 Processes   F3 Network   F4 Disk
 
-┌ CPU ──────────────────────────────────────────────────────────┐┌ Memory ─────────────────────────────┐
-│CPU(16) [████████░░░░░░░░░░░░]  41.2%  13th Gen Intel i5-13500H││RAM  [█████████████░░░░░░░]  66.5%    │
-│   55.1% │  62.3% │  48.0% │  41.2%                            ││     9.9 GiB / 14.9 GiB (Free: 1.3G) │
-│   11.0% │  22.0% │  14.1% │  12.0%                            ││Swap [░░░░░░░░░░░░░░░░░░░░]   0.0%    │
-│⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣿⣿⣿⣿                                 │└─────────────────────────────────────┘
-│⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿                                 │┌ Network ────────────────────────────┐
-└───────────────────────────────────────────────────────────────┘│▲ TX  1.2 KB/s  Total: 118.6 KiB     │
-                                                                  │▼ RX  4.7 KB/s  Total:  71.3 KiB     │
-                                                                  └─────────────────────────────────────┘
- [/] Filter  [f] Sort  [k] Kill  [q] Quit  [Tab] Switch  [↑↓] Scroll
+┌ CPU ──────────────────────────────────────────────────────────────┐┌ Memory ─────────────────────────────┐
+│CPU×16 ▕████████████░░░░░░░░░░░░░░░░░░▏  41.2%  13th Gen i5-13500H││RAM  [█████████████░░░░░░░]  66.5%    │
+│Load avg 0.42 1m  0.51 5m  0.38 15m                                ││     9.9 GiB / 14.9 GiB (Free: 1.3G) │
+│────────────────────────────────────────────────────────────────── ││Swap [░░░░░░░░░░░░░░░░░░░░]   0.0%    │
+│C0  ▕████████░░░░▏  55.1%  2.4G  │C1  ▕█████████░░░░▏  62.3%  2.4G│└─────────────────────────────────────┘
+│C2  ▕███████░░░░░▏  48.0%  2.1G  │C3  ▕██████░░░░░░▏   41.2%  1.9G│┌ Network ────────────────────────────┐
+│────────────────────────────────────────────────────────────────── ││▲ TX  1.2 KB/s  Total: 118.6 KiB     │
+│100%│                                                 ▄▅▆▇         ││▼ RX  4.7 KB/s  Total:  71.3 KiB     │
+│ 50%│                                   ▂▃  ▂▁▃▄▅▅▆▇████         │└─────────────────────────────────────┘
+│  0%│▁▁▁▁▁▁▁▁▁▁▁▁▁▂▁▂▁▂▃▃▃▄▃▃▄▄▄▄▅▅▅▅▅▆████████████████         │
+└───────────────────────────────────────────────────────────────────┘
+ [q] Quit  [Tab] Switch tab  [↑↓] Scroll
 ```
 
 ---
@@ -37,15 +39,18 @@
 
 | Panel | What you get |
 |---|---|
-| **CPU** | Per-core utilization %, global gauge, brand/count, rolling 60-sample Braille sparkline graph |
+| **CPU** | Per-core bars with GHz frequency, global gauge, load average (1m/5m/15m), rolling history graph |
 | **Memory** | Physical RAM — used / cached / free breakdown + Swap, colour-coded progress bars |
-| **Disk** | Per-mount-point usage bars, real-time read/write throughput (B/s → GB/s) |
-| **Network** | Per-interface RX/TX bandwidth, cumulative totals since launch, Braille sparklines |
-| **Processes** | Searchable, sortable table — PID, Name, User, CPU%, MEM%, Status |
+| **Disk** | `df -hT` style table — Filesystem, Type, Size, Used, Avail, Use% bar, Mounted on; real-time IOPS + throughput |
+| **Network** | Per-interface RX/TX bandwidth, cumulative totals since launch, sparklines |
+| **Processes** | Searchable, sortable table — PID, Name, User, CPU%, MEM%, Threads, Status (Running/Sleeping/Zombie/…) |
 
 **Visual highlights**
-- Braille-character sparklines (2×4 dot resolution per cell — 8× detail vs plain ASCII)
-- Colour-coded status: 🟢 Green < 70% · 🟡 Yellow 70–90% · 🔴 Red ≥ 90%
+- Block-character history graph (`▁▂▃▄▅▆▇█`) with Y-axis labels — instantly readable CPU trend
+- Gradient colour per bar: cyan (idle) → green → yellow → red (hot)
+- Load average colour-coded vs core count — turns red when system is overloaded
+- Process state summary bar: **Run / Sleep / Idle / Stop / Zombie** counts at a glance
+- Two-step kill: `k` arms (row highlights red) → `k` sends SIGTERM · `K` sends SIGKILL
 - Mouse scroll support
 - Responsive layout — adapts to any terminal width/height
 
@@ -115,12 +120,13 @@ paru -S syswatch-bin
 |---|---|
 | `F1` / `F2` / `F3` / `F4` | Switch to Overview / Processes / Network / Disk tab |
 | `Tab` | Cycle through tabs |
-| `↑` `↓` | Scroll process list |
-| `j` `k` | Vim-style scroll (down / up) |
-| `/` | Enter filter mode — type to search processes |
-| `Esc` / `Enter` | Exit filter mode |
+| `↑` `↓` | Scroll / select process |
+| `j` | Scroll down (vim-style) |
+| `/` | Enter filter mode — type to search processes by name |
+| `Esc` / `Enter` | Exit filter or cancel kill confirmation |
 | `f` | Cycle sort column: CPU% → MEM% → PID → Name |
-| `k` | Send `SIGTERM` to the selected process |
+| `k` | **Arm** kill — row turns red; press `k` again to send `SIGTERM` |
+| `K` | Send `SIGKILL` immediately to selected process |
 | `q` | Quit |
 | `Ctrl-C` | Force quit |
 
