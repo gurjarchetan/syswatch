@@ -59,10 +59,13 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           ARCHIVE="${{ env.BINARY_NAME }}-${VERSION}-linux-${{ matrix.arch }}.tar.gz"
-          tar -czf "$ARCHIVE" \
-            -C target/${{ matrix.target }}/release ${{ env.BINARY_NAME }} \
-            README.md LICENSE
-          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
+          # Stage files in a temp dir so tar picks them all from one location
+          STAGING=$(mktemp -d)
+          cp "target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}" "$STAGING/"
+          cp README.md LICENSE "$STAGING/"
+          tar -czf "$ARCHIVE" -C "$STAGING" .
+          rm -rf "$STAGING"
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
 
       - name: Upload tar.gz
         uses: actions/upload-artifact@v4
@@ -109,7 +112,7 @@ jobs:
           DEB=$(ls target/debian/*.deb | head -1)
           DEST="${{ env.BINARY_NAME }}_${VERSION}_amd64.deb"
           cp "$DEB" "$DEST"
-          echo "DEB=$DEST" >> $GITHUB_ENV
+          echo "DEB=$DEST" >> "$GITHUB_ENV"
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
