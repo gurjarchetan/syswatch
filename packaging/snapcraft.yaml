@@ -1,0 +1,44 @@
+name: syswatch
+base: core22
+version: '0.1.0'
+summary: High-performance Linux system monitor TUI
+description: |
+  SysWatch is a terminal UI (TUI) system monitor for Linux written in Rust.
+
+  Real-time views of:
+  - CPU per-core utilization with Braille sparkline graphs
+  - Memory (RAM / Swap) with colour-coded gauges
+  - Disk I/O per mount point
+  - Network bandwidth per interface
+  - Searchable, sortable process list
+
+  Near-zero CPU footprint: data sampled every 500 ms, rendered at ≤ 30 fps.
+  Keyboard shortcuts: Tab/F1-F4 switch tabs, / filter, f sort, k kill, q quit.
+
+license: MIT
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+
+apps:
+  syswatch:
+    command: bin/syswatch
+    plugs:
+      - system-observe   # read /proc, /sys
+      - network-observe  # read network stats
+      - hardware-observe # read hardware info
+      - kill-privileged  # send signals to processes
+
+parts:
+  syswatch:
+    plugin: rust
+    source: .
+    build-packages:
+      - pkg-config
+      - libssl-dev
+    override-build: |
+      cargo build --release
+      install -Dm755 target/release/syswatch "$SNAPCRAFT_PART_INSTALL/bin/syswatch"

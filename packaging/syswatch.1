@@ -1,0 +1,42 @@
+.TH SYSWATCH 1 "2026-05-01" "0.1.0" "SysWatch Manual"
+.SH NAME
+syswatch \- a high-performance Linux system monitor TUI
+.SH SYNOPSIS
+.B syswatch
+.SH DESCRIPTION
+SysWatch is a terminal UI (TUI) system monitor for Linux. It provides
+real-time, colour-coded views of CPU per-core utilization, memory usage,
+disk I/O, network bandwidth, and a searchable, sortable process list.
+.PP
+Data is sampled every 500 ms. The UI renders at up to 30 fps with
+near-zero CPU overhead. Braille-character sparkline graphs (Unicode
+U+2800 block) provide high-resolution trend history.
+.SH KEY BINDINGS
+.TP
+.B F1 / F2 / F3 / F4
+Switch to Overview / Processes / Network / Disk tab.
+.TP
+.B Tab
+Cycle through tabs.
+.TP
+.B Up / Down  (or k / j)
+Scroll the process list.
+.TP
+.B /
+Enter filter mode. Type to search by process name.
+.TP
+.B Esc / Enter
+Exit filter mode.
+.TP
+.B f
+Cycle sort column: CPU% → MEM% → PID → Name.
+.TP
+.B k
+Send SIGTERM to the selected process.
+.TP
+.B q / Ctrl-C
+Quit.
+.SH AUTHOR
+Chetan Gurjar <https://github.com/gurjarchetan>
+.SH LICENSE
+MIT

@@ -1,0 +1,215 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'          # triggers on: git tag v0.1.0 && git push --tags
+  workflow_dispatch:      # manual trigger from GitHub UI
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: syswatch
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build matrix: amd64 + arm64
+  # ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            arch: amd64
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Strip binary
+        run: strip target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}
+
+      # ── .tar.gz archive ────────────────────────────────────────────────────
+      - name: Create tar.gz archive
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          ARCHIVE="${{ env.BINARY_NAME }}-${VERSION}-linux-${{ matrix.arch }}.tar.gz"
+          tar -czf "$ARCHIVE" \
+            -C target/${{ matrix.target }}/release ${{ env.BINARY_NAME }} \
+            README.md LICENSE
+          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
+
+      - name: Upload tar.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.arch }}
+          path: ${{ env.ARCHIVE }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # .deb package (amd64 only via cargo-deb)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deb:
+    name: Build .deb package
+    runs-on: ubuntu-22.04
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-x86_64-cargo-deb-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Build .deb
+        run: cargo deb --no-build   # binary already built above
+
+      - name: Rename .deb with version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          DEB=$(ls target/debian/*.deb | head -1)
+          DEST="${{ env.BINARY_NAME }}_${VERSION}_amd64.deb"
+          cp "$DEB" "$DEST"
+          echo "DEB=$DEST" >> $GITHUB_ENV
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-amd64
+          path: ${{ env.DEB }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # GitHub Release — attach all artifacts
+  # ─────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-22.04
+    needs: [build, deb]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate checksums
+        run: |
+          find artifacts/ -type f | sort | xargs sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SysWatch ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            ## SysWatch ${{ github.ref_name }}
+
+            ### Install
+
+            **Debian / Ubuntu (amd64):**
+            ```bash
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch_${{ github.ref_name }}_amd64.deb
+            sudo dpkg -i syswatch_${{ github.ref_name }}_amd64.deb
+            ```
+
+            **One-liner install script:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            **Build from source:**
+            ```bash
+            cargo install --git https://github.com/${{ github.repository }}
+            ```
+
+            ### Assets
+            | File | Description |
+            |------|-------------|
+            | `syswatch_*_amd64.deb` | Debian/Ubuntu package (x86_64) |
+            | `syswatch-*-linux-amd64.tar.gz` | Binary tarball (x86_64) |
+            | `syswatch-*-linux-arm64.tar.gz` | Binary tarball (ARM64) |
+            | `SHA256SUMS.txt` | Checksums for all files |
+
+          files: |
+            artifacts/**/*
+            SHA256SUMS.txt
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CI check on every push/PR (no release artifacts)
+  # ─────────────────────────────────────────────────────────────────────────────
+  ci:
+    name: CI (lint + test)
+    runs-on: ubuntu-22.04
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-ci-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy (warnings as errors)
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        run: cargo build --release

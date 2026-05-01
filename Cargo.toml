@@ -1,0 +1,61 @@
+[package]
+name = "syswatch"
+version = "0.1.0"
+edition = "2021"
+description = "A high-performance, near-zero-footprint Linux system monitor TUI"
+authors = ["Chetan Gurjar <chetan04.2014@gmail.com>"]
+license = "MIT"
+homepage = "https://github.com/gurjarchetan/syswatch"
+repository = "https://github.com/gurjarchetan/syswatch"
+readme = "README.md"
+keywords = ["tui", "system-monitor", "linux", "htop", "terminal"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "syswatch"
+path = "src/main.rs"
+
+[dependencies]
+# TUI framework
+ratatui = "0.28"
+crossterm = "0.28"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# System info
+sysinfo = "0.31"
+
+# Utilities
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+parking_lot = "0.12"
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+# ── cargo-deb packaging ───────────────────────────────────────────────────────
+[package.metadata.deb]
+maintainer = "Chetan Gurjar <chetan04.2014@gmail.com>"
+copyright = "2026, Chetan Gurjar"
+license-file = ["LICENSE", "4"]
+extended-description = """\
+SysWatch is a high-performance terminal UI system monitor for Linux.
+It shows real-time CPU per-core usage, memory breakdown, disk I/O,
+network bandwidth, and a searchable process list — all with Braille
+sparkline graphs and colour-coded health indicators.
+Near-zero CPU footprint: data sampled every 500 ms, rendered at ≤ 30 fps."""
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/syswatch", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/syswatch/README.md", "644"],
+    ["packaging/syswatch.1", "usr/share/man/man1/", "644"],
+    ["packaging/syswatch.desktop", "usr/share/applications/", "644"],
+]
+

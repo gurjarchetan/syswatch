@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=SysWatch
+Comment=High-performance Linux system monitor TUI
+Exec=syswatch
+Terminal=true
+Type=Application
+Icon=utilities-system-monitor
+Categories=System;Monitor;
+Keywords=cpu;memory;disk;network;process;monitor;tui;htop;
+StartupNotify=false
