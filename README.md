@@ -142,7 +142,26 @@ syswatch
 sudo snap install syswatch
 ```
 
-### Option 3 — Install script (any Linux distro)
+### Option 3 — Pre-built `.rpm` (RHEL / CentOS / Amazon Linux / Fedora)
+
+```bash
+# Download the latest release
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.3.0-1.x86_64.rpm
+
+# Install (Amazon Linux / RHEL / CentOS / Fedora)
+sudo rpm -i syswatch-0.3.0-1.x86_64.rpm
+# or with dnf (Fedora / RHEL 8+ / Amazon Linux 2023)
+sudo dnf install ./syswatch-0.3.0-1.x86_64.rpm
+# or with yum (CentOS 7 / Amazon Linux 2)
+sudo yum install ./syswatch-0.3.0-1.x86_64.rpm
+
+# Run
+syswatch
+```
+
+### Option 4 — Install script (any Linux distro)
+
+Works on **all** distributions — Debian, Ubuntu, RHEL, CentOS, Amazon Linux, Fedora, Arch, Alpine, openSUSE, and more. No root required.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.sh | bash
@@ -150,7 +169,7 @@ curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.
 
 This downloads the correct binary for your architecture, places it in `~/.local/bin`, and adds it to your `$PATH`.
 
-### Option 4 — Build from source
+### Option 5 — Build from source
 
 **Prerequisites:** Rust 1.75+ ([install via rustup](https://rustup.rs))
 
@@ -169,7 +188,7 @@ cargo install --path .
 syswatch
 ```
 
-### Option 5 — Arch Linux (AUR)
+### Option 6 — Arch Linux (AUR)
 
 ```bash
 yay -S syswatch-bin
@@ -292,14 +311,19 @@ input/
 
 ## Building packages locally
 
+**Debian / Ubuntu (`.deb`)**
 ```bash
-# Install cargo-deb
 cargo install cargo-deb
-
-# Build .deb
 cargo deb
-
 # Output: target/debian/syswatch_0.3.0_amd64.deb
+```
+
+**RHEL / CentOS / Amazon Linux / Fedora (`.rpm`)**
+```bash
+cargo install cargo-generate-rpm
+cargo build --release
+cargo generate-rpm
+# Output: target/generate-rpm/syswatch-0.3.0-1.x86_64.rpm
 ```
 
 ---
