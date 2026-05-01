@@ -3,6 +3,17 @@ pub mod widgets;
 pub mod layout;
 pub mod theme;
 
+/// Truncate a string to at most `max_chars` characters, appending … if needed.
+pub fn truncate(s: &str, max_chars: usize) -> String {
+    if s.chars().count() <= max_chars {
+        s.to_string()
+    } else {
+        let mut r: String = s.chars().take(max_chars.saturating_sub(1)).collect();
+        r.push('…');
+        r
+    }
+}
+
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
@@ -36,13 +47,3 @@ pub fn draw(f: &mut Frame, app: &AppState) {
     widgets::status_bar::render(f, chunks[3], app);
 }
 
-/// Shorten a string to `max_len`, appending … if truncated.
-pub fn truncate(s: &str, max_len: usize) -> String {
-    if s.chars().count() <= max_len {
-        s.to_string()
-    } else {
-        let mut out: String = s.chars().take(max_len.saturating_sub(1)).collect();
-        out.push('…');
-        out
-    }
-}

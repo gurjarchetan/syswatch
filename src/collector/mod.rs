@@ -11,9 +11,9 @@ use anyhow::Result;
 
 use cpu::CpuStats;
 use memory::MemStats;
-use disk::DiskStats;
+use disk::{DiskStats, DiskIoState};
 use network::NetStats;
-use process::ProcessInfo;
+use process::{ProcessInfo, ProcSummary};
 
 pub const HISTORY_LEN: usize = 60;
 
@@ -25,6 +25,7 @@ pub struct SystemState {
     pub disks: Vec<DiskStats>,
     pub network: NetStats,
     pub processes: Vec<ProcessInfo>,
+    pub proc_summary: ProcSummary,
     pub uptime_secs: u64,
     pub hostname: String,
     pub os_name: String,
@@ -38,6 +39,7 @@ pub async fn spawn_collector(state: SharedState) -> Result<()> {
     let mut sys = sysinfo::System::new_all();
     let mut disks_tracker = sysinfo::Disks::new_with_refreshed_list();
     let mut nets_tracker = sysinfo::Networks::new_with_refreshed_list();
+    let mut disk_io_state = DiskIoState::default();
 
     // Gather one-time info
     {
@@ -67,9 +69,11 @@ pub async fn spawn_collector(state: SharedState) -> Result<()> {
         new_cpu.history = cpu::merge_history(&old_history, new_cpu.global);
         s.cpu    = new_cpu;
         s.memory = memory::collect(&sys);
-        s.disks  = disk::collect(&disks_tracker);
+        s.disks  = disk::collect(&disks_tracker, &mut disk_io_state);
         let old_net = s.network.clone();
         s.network = network::collect(&nets_tracker, &mut { old_net });
-        s.processes = process::collect(&sys);
+        let (procs, summary) = process::collect(&sys);
+        s.processes    = procs;
+        s.proc_summary = summary;
     }
 }

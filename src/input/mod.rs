@@ -78,9 +78,23 @@ pub async fn handle_events(app: &mut AppState) -> Result<bool> {
                     app.sort_col = app.sort_col.next();
                 }
 
-                // Kill selected process
-                KeyCode::Char('k') => {
-                    kill_selected(app);
+                // Kill selected process — two-step: first press enters confirm, second sends signal
+                KeyCode::Char('k') if app.active_tab == ActiveTab::Processes => {
+                    if app.kill_confirm {
+                        kill_selected(app, false);
+                        app.kill_confirm = false;
+                    } else {
+                        app.kill_confirm = true;
+                    }
+                }
+                // SIGKILL immediately on K (uppercase)
+                KeyCode::Char('K') if app.active_tab == ActiveTab::Processes => {
+                    kill_selected(app, true);
+                    app.kill_confirm = false;
+                }
+                // Cancel confirm with Esc
+                KeyCode::Esc => {
+                    app.kill_confirm = false;
                 }
 
                 _ => {}
@@ -107,16 +121,16 @@ pub async fn handle_events(app: &mut AppState) -> Result<bool> {
     Ok(false)
 }
 
-fn kill_selected(app: &AppState) {
+fn kill_selected(app: &AppState, force: bool) {
     let state = app.state.read();
     let procs = &state.processes;
     if let Some(proc) = procs.get(app.selected_proc) {
         let pid = proc.pid as i32;
-        // SAFETY: sending SIGTERM to the process; only our own user's processes
-        // are reachable without root, which is expected behaviour.
+        let sig = if force { libc::SIGKILL } else { libc::SIGTERM };
+        // SAFETY: sending signal to process; without root, can only reach own processes.
         #[cfg(unix)]
         unsafe {
-            libc::kill(pid, libc::SIGTERM);
+            libc::kill(pid, sig);
         }
     }
 }

@@ -1,15 +1,28 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::Style,
+    style::{Color, Style, Modifier},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
 use crate::app::AppState;
 use crate::ui::theme;
 
+fn status_style(status: &str) -> Style {
+    match status {
+        "R" => Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+        "Z" => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        "T" => Style::default().fg(Color::Yellow),
+        "D" => Style::default().fg(Color::Magenta),
+        "X" => Style::default().fg(Color::Red).add_modifier(Modifier::DIM),
+        "I" => Style::default().fg(Color::DarkGray),
+        _   => Style::default().fg(Color::DarkGray),
+    }
+}
+
 pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     let state = app.state.read();
+    let summary = state.proc_summary.clone();
     let mut procs = state.processes.clone();
     drop(state); // release lock early
 
@@ -27,34 +40,90 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
         SortCol::Name => procs.sort_by(|a, b| a.name.cmp(&b.name)),
     }
 
-    let header = Line::from(vec![
-        Span::styled(format!("{:>7}  {:<20} {:<10} {:>7}  {:>7}  {}", "PID", "NAME", "USER", "CPU%", "MEM%", "ST"),
-            theme::header_style()),
-    ]);
+    let mut lines: Vec<Line> = Vec::new();
 
-    let visible_rows = (area.height as usize).saturating_sub(4);
+    // ── summary bar ─────────────────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("Tasks: ", theme::dim_style()),
+        Span::styled(format!("{} total  ", summary.total), theme::header_style()),
+        Span::styled("R:", theme::dim_style()),
+        Span::styled(format!("{} ", summary.running), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled("  S:", theme::dim_style()),
+        Span::styled(format!("{} ", summary.sleeping), Style::default().fg(Color::Cyan)),
+        Span::styled("  Z:", theme::dim_style()),
+        Span::styled(format!("{} ",
+            summary.zombie),
+            if summary.zombie > 0 { Style::default().fg(Color::Red).add_modifier(Modifier::BOLD) }
+            else { Style::default().fg(Color::DarkGray) }
+        ),
+        Span::styled("  T:", theme::dim_style()),
+        Span::styled(format!("{} ", summary.stopped),  Style::default().fg(Color::Yellow)),
+        Span::styled("  O:", theme::dim_style()),
+        Span::styled(format!("{}", summary.other), Style::default().fg(Color::DarkGray)),
+    ]));
+
+    // ── column header ────────────────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("{:>7}  {:<20} {:<10} {:>7}  {:>7}  {:<3} {:>5} {}",
+                "PID", "NAME", "USER", "CPU%", "MEM%", "ST", "THR", "STATUS"),
+            theme::header_style(),
+        ),
+    ]));
+
+    // ── separator ────────────────────────────────────────────────────────────
+    let sep_w = (area.width as usize).saturating_sub(2);
+    lines.push(Line::from(Span::styled("─".repeat(sep_w), Style::default().fg(Color::DarkGray))));
+
+    // header rows above = 3; border = 2 → need to subtract 5 total
+    let visible_rows = (area.height as usize).saturating_sub(5);
     let scroll_off   = app.scroll_offset;
 
-    let mut lines = vec![header];
-
     for (idx, proc) in procs.iter().skip(scroll_off).take(visible_rows).enumerate() {
-        let is_selected = idx + scroll_off == app.selected_proc;
-        let row_style = if is_selected {
+        let abs_idx  = idx + scroll_off;
+        let is_sel   = abs_idx == app.selected_proc;
+        let is_kill  = app.kill_confirm && is_sel;
+
+        let row_style = if is_kill {
+            Style::default().fg(Color::White).bg(Color::Red).add_modifier(Modifier::BOLD)
+        } else if is_sel {
             theme::highlight_style()
         } else {
             Style::default()
         };
-        let cpu_color = theme::pct_color_f32(proc.cpu_pct);
-        let mem_color = theme::pct_color_f32(proc.mem_pct);
+
+        let cpu_color = if is_sel || is_kill { row_style.fg.unwrap_or(Color::White) }
+                        else { theme::pct_color_f32(proc.cpu_pct) };
+        let mem_color = if is_sel || is_kill { row_style.fg.unwrap_or(Color::White) }
+                        else { theme::pct_color_f32(proc.mem_pct) };
 
         lines.push(Line::from(vec![
             Span::styled(
-                format!("{:>7}  {:<20} {:<10} ", proc.pid, crate::ui::truncate(&proc.name, 18), crate::ui::truncate(&proc.user, 8)),
+                format!("{:>7}  {:<20} {:<10} ",
+                    proc.pid,
+                    crate::ui::truncate(&proc.name, 18),
+                    crate::ui::truncate(&proc.user, 8)),
                 row_style,
             ),
             Span::styled(format!("{:>7.2}  ", proc.cpu_pct), Style::default().fg(cpu_color)),
             Span::styled(format!("{:>7.2}  ", proc.mem_pct), Style::default().fg(mem_color)),
-            Span::styled(proc.status.clone(), row_style),
+            Span::styled(format!("{:<3} ", proc.status),     status_style(&proc.status)),
+            Span::styled(format!("{:>5} ", proc.threads),    theme::dim_style()),
+            Span::styled(proc.status_full.clone(),            status_style(&proc.status)),
+        ]));
+    }
+
+    // Kill-confirm hint at bottom if active
+    if app.kill_confirm {
+        lines.push(Line::from(vec![
+            Span::styled(
+                "  Press k again to send SIGTERM, K for SIGKILL, Esc to cancel  ",
+                Style::default().fg(Color::White).bg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
+        ]));
+    } else if app.filter_mode {
+        lines.push(Line::from(vec![
+            Span::styled(format!("  Filter: {}▋ ", app.filter_text), theme::header_style()),
         ]));
     }
 
@@ -92,3 +161,4 @@ impl SortCol {
         }
     }
 }
+

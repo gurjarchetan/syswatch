@@ -11,6 +11,8 @@ pub struct AppState {
     pub filter_text:    String,
     pub scroll_offset:  usize,
     pub selected_proc:  usize,
+    /// When true, a second `k` kills with SIGTERM; `K` kills with SIGKILL
+    pub kill_confirm:   bool,
 }
 
 impl AppState {
@@ -23,6 +25,7 @@ impl AppState {
             filter_text:   String::new(),
             scroll_offset: 0,
             selected_proc: 0,
+            kill_confirm:  false,
         }
     }
 }
