@@ -12,7 +12,7 @@ use crossterm::{
     event::{EnableMouseCapture, DisableMouseCapture},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use tokio::time::{interval, Duration};
+use std::time::{Duration, Instant};
 
 use collector::{SharedState, SystemState, spawn_collector};
 use app::AppState;
@@ -119,7 +119,11 @@ fn parse_args() -> Result<Option<Config>> {
     Ok(Some(Config { start_tab, interval_ms }))
 }
 
-#[tokio::main]
+// Two worker threads are sufficient: one runs the render+event loop,
+// one runs the background collector. The default runtime spawns one
+// thread per CPU core (16 on this machine = 33 threads total) — every
+// idle thread burns ~0.3% CPU through tokio's work-stealing scheduler.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> Result<()> {
     let config = match parse_args()? {
         Some(c) => c,
@@ -151,14 +155,35 @@ async fn main() -> Result<()> {
     app.active_tab = config.start_tab;
 
     // ── render loop ────────────────────────────────────────────────────────────
-    let mut render_ticker = interval(Duration::from_millis(33));
+    // Render only when: (a) user input (needs_redraw), (b) new data arrived
+    // (proc_changed), or (c) IDLE_REDRAW elapsed for graph updates (2fps).
+    //
+    // Critically: event::poll blocks for exactly (time_until_next_redraw),
+    // so the loop only wakes ~2×/second when idle instead of 20×/second
+    // with a fixed 50ms timeout. This is the main CPU saving.
+    let mut last_draw = Instant::now() - Duration::from_secs(1); // force first frame
+    const IDLE_REDRAW: Duration = Duration::from_millis(500);
 
     loop {
-        if input::handle_events(&mut app).await? {
+        // Check for new data and rebuild proc cache if needed.
+        let proc_changed = app.update_proc_cache();
+
+        // Draw if anything changed or interval elapsed.
+        let elapsed = last_draw.elapsed();
+        if app.needs_redraw || proc_changed || elapsed >= IDLE_REDRAW {
+            terminal.draw(|f| ui::draw(f, &app))?;
+            last_draw = Instant::now();
+            app.needs_redraw = false;
+        }
+
+        // Block exactly until the next scheduled redraw (or until user input).
+        // This replaces the fixed 50ms poll that ran at 20Hz doing nothing.
+        let time_to_draw = IDLE_REDRAW
+            .saturating_sub(last_draw.elapsed())
+            .max(Duration::from_millis(1));
+        if input::handle_events(&mut app, time_to_draw).await? {
             break;
         }
-        render_ticker.tick().await;
-        terminal.draw(|f| ui::draw(f, &app))?;
     }
 
     // ── restore terminal ───────────────────────────────────────────────────────

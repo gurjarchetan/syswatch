@@ -1,47 +1,30 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Style, Modifier},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
 use crate::app::AppState;
-use crate::ui::theme;
+use crate::ui::{braille, theme};
 
-fn gradient_color(pct: f32) -> Color {
-    if pct >= 90.0 { Color::Red }
-    else if pct >= 70.0 { Color::Yellow }
-    else if pct >= 40.0 { Color::Green }
-    else { Color::Cyan }
+fn grad(pct: f32) -> Style {
+    Style::default().fg(theme::pct_color_f32(pct))
 }
 
-/// Convert 0-100 value to block char ▁▂▃▄▅▆▇█
-fn block_char(v: f32) -> char {
-    let blocks = [' ','▁','▂','▃','▄','▅','▆','▇','█'];
-    let idx = ((v / 100.0) * 8.0).round().clamp(0.0, 8.0) as usize;
-    blocks[idx]
+/// Thin mini-bar for per-core compact row (8 chars wide)
+fn mini_bar(pct: f32, width: usize) -> String {
+    let filled = ((pct / 100.0) * width as f32).round().clamp(0.0, width as f32) as usize;
+    let mut s = String::with_capacity(width * 3); // '━' and '─' are each 3 bytes
+    for _ in 0..filled          { s.push('━'); }
+    for _ in filled..width      { s.push('─'); }
+    s
 }
 
-fn core_line(idx: usize, usage: f32, freq_mhz: u64) -> Line<'static> {
-    let bar_w  = 12usize;
-    let filled = ((usage / 100.0) * bar_w as f32).round().clamp(0.0, bar_w as f32) as usize;
-    let color  = gradient_color(usage);
-    let freq_str = if freq_mhz >= 1000 {
-        format!("{:.1}GHz", freq_mhz as f64 / 1000.0)
-    } else if freq_mhz > 0 {
-        format!("{}MHz", freq_mhz)
-    } else {
-        String::new()
-    };
-    Line::from(vec![
-        Span::styled(format!("C{:<2}", idx), theme::dim_style()),
-        Span::raw(" ▕"),
-        Span::styled("█".repeat(filled),           Style::default().fg(color)),
-        Span::styled("░".repeat(bar_w - filled),   Style::default().fg(Color::DarkGray)),
-        Span::raw("▏ "),
-        Span::styled(format!("{:5.1}%", usage), Style::default().fg(color).add_modifier(Modifier::BOLD)),
-        Span::styled(format!(" {:>7}", freq_str), theme::dim_style()),
-    ])
+fn freq_str(mhz: u64) -> String {
+    if mhz >= 1000 { format!("{:.1}GHz", mhz as f64 / 1000.0) }
+    else if mhz > 0 { format!("{}MHz", mhz) }
+    else { "─────".to_string() }
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
@@ -52,122 +35,140 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
 
     let mut lines: Vec<Line> = Vec::new();
 
-    // ── global bar ─────────────────────────────────────────────────────────
-    let g     = cpu.global;
-    let bar_w = (inner_w.saturating_sub(28)).max(8).min(36);
-    let filled= ((g / 100.0) * bar_w as f32).round().clamp(0.0, bar_w as f32) as usize;
-    let gc    = gradient_color(g);
-    let brand = crate::ui::truncate(&cpu.brand, inner_w.saturating_sub(bar_w + 22));
-    lines.push(Line::from(vec![
-        Span::styled(format!("CPU×{} ", cpu.count), theme::header_style()),
-        Span::raw("▕"),
-        Span::styled("█".repeat(filled),         Style::default().fg(gc)),
-        Span::styled("░".repeat(bar_w - filled), Style::default().fg(Color::DarkGray)),
-        Span::raw("▏ "),
-        Span::styled(format!("{:5.1}%", g), Style::default().fg(gc).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("  {}", brand), theme::dim_style()),
-    ]));
+    // ── Global header bar ─────────────────────────────────────────────────
+    let g      = cpu.global;
+    let bar_w  = (inner_w.saturating_sub(30)).clamp(10, 40);
+    let filled = ((g / 100.0) * bar_w as f32).round().clamp(0.0, bar_w as f32) as usize;
 
-    // ── load average ───────────────────────────────────────────────────────
+    // gradient fill: each char gets its own colour based on position
+    let mut bar_spans: Vec<Span> = Vec::with_capacity(bar_w);
+    for i in 0..bar_w {
+        let position_pct = (i as f32 / bar_w as f32) * 100.0;
+        let ch = if i < filled { "█" } else { "░" };
+        let color = if i < filled { theme::pct_color_f32(position_pct.max(g * 0.3)) }
+                    else { theme::C_BORDER };
+        bar_spans.push(Span::styled(ch, Style::default().fg(color)));
+    }
+
+    let brand = crate::ui::truncate(&cpu.brand, inner_w.saturating_sub(bar_w + 22));
+    let mut head = vec![
+        Span::styled(format!("CPU×{:<2} ", cpu.count), theme::header_style()),
+        Span::styled("▕", theme::dim_style()),
+    ];
+    head.extend(bar_spans);
+    head.push(Span::styled("▏", theme::dim_style()));
+    head.push(Span::styled(format!(" {:5.1}%", g), grad(g).add_modifier(Modifier::BOLD)));
+    head.push(Span::styled(format!("  {}", brand), theme::dim_style()));
+    lines.push(Line::from(head));
+
+    // ── Load average ──────────────────────────────────────────────────────
     let [l1, l5, l15] = cpu.load_avg;
     let nproc = cpu.count as f64;
-    let la_col = |v: f64| {
-        if v / nproc >= 1.0 { Color::Red }
-        else if v / nproc >= 0.7 { Color::Yellow }
-        else { Color::Green }
+    let lc = |v: f64| {
+        if v / nproc >= 1.0 { theme::C_RED }
+        else if v / nproc >= 0.7 { theme::C_ORANGE }
+        else if v / nproc >= 0.4 { theme::C_YELLOW }
+        else { theme::C_GREEN }
     };
     lines.push(Line::from(vec![
-        Span::styled("Load avg ", theme::dim_style()),
-        Span::styled(format!("{:.2}", l1),  Style::default().fg(la_col(l1))),
-        Span::styled(" 1m  ",              theme::dim_style()),
-        Span::styled(format!("{:.2}", l5),  Style::default().fg(la_col(l5))),
-        Span::styled(" 5m  ",              theme::dim_style()),
-        Span::styled(format!("{:.2}", l15), Style::default().fg(la_col(l15))),
-        Span::styled(" 15m",               theme::dim_style()),
+        Span::styled("Load  ", theme::dim_style()),
+        Span::styled(format!("{:.2}", l1),  Style::default().fg(lc(l1)).add_modifier(Modifier::BOLD)),
+        Span::styled(" 1m  ", theme::dim_style()),
+        Span::styled(format!("{:.2}", l5),  Style::default().fg(lc(l5))),
+        Span::styled(" 5m  ", theme::dim_style()),
+        Span::styled(format!("{:.2}", l15), Style::default().fg(lc(l15))),
+        Span::styled(" 15m", theme::dim_style()),
     ]));
 
-    // ── separator ─────────────────────────────────────────────────────────
-    lines.push(Line::from(Span::styled("─".repeat(inner_w), Style::default().fg(Color::DarkGray))));
+    // ── Separator ─────────────────────────────────────────────────────────
+    lines.push(Line::from(Span::styled("─".repeat(inner_w), theme::border_style())));
 
-    // ── per-core grid (2 columns) ─────────────────────────────────────────
-    let cores = &cpu.cores;
-    let freqs = &cpu.freqs;
-    let get_freq = |i: usize| freqs.get(i).copied().unwrap_or(0);
-    let two_col = inner_w >= 52;
+    // ── Per-core rows (2 columns when wide enough) ────────────────────────
+    let cores  = &cpu.cores;
+    let freqs  = &cpu.freqs;
+    let get_f  = |i: usize| freqs.get(i).copied().unwrap_or(0);
+    let two_col = inner_w >= 56;
+    let col_w   = if two_col { inner_w / 2 } else { inner_w };
+    let mini_w  = col_w.saturating_sub(24).clamp(6, 18);
+
+    let core_line = |idx: usize, usage: f32, mhz: u64| -> Vec<Span<'static>> {
+        let bar = mini_bar(usage, mini_w);
+        let color = theme::pct_color_f32(usage);
+        vec![
+            Span::styled(format!("C{:<2} ", idx), theme::dim_style()),
+            Span::styled(bar, Style::default().fg(color)),
+            Span::styled(format!(" {:5.1}%", usage),
+                Style::default().fg(color).add_modifier(Modifier::BOLD)),
+            Span::styled(format!(" {:>7}", freq_str(mhz)), theme::dim_style()),
+        ]
+    };
 
     for i in (0..cores.len()).step_by(if two_col { 2 } else { 1 }) {
         if two_col && i + 1 < cores.len() {
-            let left  = core_line(i,     cores[i],     get_freq(i));
-            let right = core_line(i + 1, cores[i + 1], get_freq(i + 1));
-            let mut spans = left.spans.clone();
-            let left_len: usize = spans.iter().map(|s| s.content.chars().count()).sum();
-            let pad = (inner_w / 2).saturating_sub(left_len);
-            if pad > 0 { spans.push(Span::raw(" ".repeat(pad))); }
-            spans.push(Span::styled("│", Style::default().fg(Color::DarkGray)));
-            spans.extend(right.spans);
+            let mut spans = core_line(i, cores[i], get_f(i));
+            // pad left column to col_w
+            let used: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+            if col_w > used {
+                spans.push(Span::raw(" ".repeat(col_w - used)));
+            }
+            spans.push(Span::styled("│", theme::border_style()));
+            spans.extend(core_line(i + 1, cores[i + 1], get_f(i + 1)));
             lines.push(Line::from(spans));
         } else {
-            lines.push(core_line(i, cores[i], get_freq(i)));
+            lines.push(Line::from(core_line(i, cores[i], get_f(i))));
         }
     }
 
-    // ── history graph with Y-axis ─────────────────────────────────────────
+    // ── Braille history graph ─────────────────────────────────────────────
     let core_rows = (cores.len() + if two_col { 1 } else { 0 }) / if two_col { 2 } else { 1 };
-    let graph_h   = inner_h.saturating_sub(4 + core_rows).max(3); // 2 header + sep + sep
-    let graph_w   = inner_w.saturating_sub(6); // 6 chars for Y-axis "100% |"
-    let history   = &cpu.history;
+    // header=2, sep=1, sep_before_graph=1 → 4 fixed rows; fill all remaining height
+    let graph_h = inner_h.saturating_sub(4 + core_rows).max(2);
+    // Y-axis: "XX% " = 4 chars + "│" = 1 = 5 prefix chars; right side gets "│" too
+    let y_w      = 4usize; // label width "100%"
+    let graph_w  = inner_w.saturating_sub(y_w + 2).max(4); // +2 for left│ and right│
 
-    lines.push(Line::from(Span::styled("─".repeat(inner_w), Style::default().fg(Color::DarkGray))));
+    lines.push(Line::from(Span::styled("─".repeat(inner_w), theme::border_style())));
 
-    if history.is_empty() {
-        lines.push(Line::from(Span::styled("  Collecting CPU history…", theme::dim_style())));
+    if cpu.history.is_empty() {
+        lines.push(Line::from(Span::styled("  Collecting…", theme::dim_style())));
     } else {
-        let data_len = history.len();
-        for row in 0..graph_h {
-            // row 0 = top = 100%, row graph_h-1 = bottom = ~0%
-            let row_top = 100.0 * (graph_h - row)     as f32 / graph_h as f32;
-            let row_bot = 100.0 * (graph_h - row - 1) as f32 / graph_h as f32;
+        // render_f32 works directly on the f32 history — no Vec<u64> conversion needed.
+        let braille_rows = braille::render_f32(&cpu.history, graph_w, graph_h);
+        let graph_color  = theme::pct_color_f32(g);
 
-            let label = if row == 0             { format!("100%│") }
-                        else if row == graph_h/2 { format!(" 50%│") }
-                        else if row == graph_h-1 { format!("  0%│") }
-                        else                     { format!("    │") };
+        let window_start = cpu.history.len().saturating_sub(graph_w * 2);
+        let peak_pct = cpu.history[window_start..].iter().cloned()
+            .fold(0.0_f32, f32::max).min(100.0) as u64;
+        let half_pct = peak_pct / 2;
 
-            let mut spans = vec![Span::styled(label, theme::dim_style())];
-
-            for col in 0..graph_w {
-                let hist_idx = if data_len >= graph_w {
-                    data_len - graph_w + col
-                } else {
-                    if col < graph_w - data_len {
-                        spans.push(Span::raw(" "));
-                        continue;
-                    }
-                    col - (graph_w - data_len)
-                };
-                let val = history[hist_idx];
-                let color = gradient_color(val);
-                let ch = if val >= row_top {
-                    '█'
-                } else if val > row_bot {
-                    let frac = (val - row_bot) / (row_top - row_bot);
-                    block_char(frac * 100.0)
-                } else {
-                    ' '
-                };
-                if ch == ' ' {
-                    spans.push(Span::raw(" "));
-                } else {
-                    spans.push(Span::styled(ch.to_string(), Style::default().fg(color)));
-                }
-            }
-            lines.push(Line::from(spans));
+        for (row_idx, row_str) in braille_rows.iter().enumerate() {
+            let lbl = if row_idx == 0 {
+                format!("{:>3}%", peak_pct)
+            } else if row_idx == graph_h / 2 {
+                format!("{:>3}%", half_pct)
+            } else if row_idx + 1 == graph_h {
+                "  0%".to_string()
+            } else {
+                "    ".to_string()
+            };
+            lines.push(Line::from(vec![
+                Span::styled(format!("{}│", lbl), theme::dim_style()),
+                Span::styled(row_str.clone(), Style::default().fg(graph_color)),
+                Span::styled("│", theme::dim_style()),
+            ]));
         }
+        // Bottom axis baseline
+        lines.push(Line::from(Span::styled(
+            format!("    └{}┘", "─".repeat(graph_w)),
+            theme::dim_style(),
+        )));
     }
 
     let block = Block::default()
         .title(Span::styled(" CPU ", theme::title_style()))
-        .borders(Borders::ALL);
+        .borders(Borders::ALL)
+        .border_style(theme::border_style());
 
     f.render_widget(Paragraph::new(lines).block(block), area);
 }
+

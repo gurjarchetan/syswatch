@@ -11,10 +11,10 @@ pub enum ActiveTab {
     Disk,
 }
 
-/// Non-blocking: poll for an event with 50 ms timeout.
+/// Poll for a terminal event, blocking for at most `timeout`.
 /// Returns true if the app should exit.
-pub async fn handle_events(app: &mut AppState) -> Result<bool> {
-    if !event::poll(Duration::from_millis(50))? {
+pub async fn handle_events(app: &mut AppState, timeout: Duration) -> Result<bool> {
+    if !event::poll(timeout)? {
         return Ok(false);
     }
 
@@ -33,6 +33,7 @@ pub async fn handle_events(app: &mut AppState) -> Result<bool> {
                     }
                     _ => {}
                 }
+                app.needs_redraw = true;
                 return Ok(false);
             }
 
@@ -92,28 +93,45 @@ pub async fn handle_events(app: &mut AppState) -> Result<bool> {
                     kill_selected(app, true);
                     app.kill_confirm = false;
                 }
-                // Cancel confirm with Esc
+                // Cancel confirm or close detail with Esc
                 KeyCode::Esc => {
+                    app.kill_confirm = false;
+                    app.show_proc_detail = false;
+                }
+
+                // Show/hide process detail popup (Enter in Processes tab)
+                KeyCode::Enter if app.active_tab == ActiveTab::Processes => {
+                    if !app.show_proc_detail {
+                        // proc_cache is already sorted+filtered; capture the PID
+                        // of the selected row so the popup stays stable across re-sorts.
+                        app.detail_pid = app.proc_cache.get(app.selected_proc).map(|p| p.pid);
+                    }
+                    app.show_proc_detail = !app.show_proc_detail;
                     app.kill_confirm = false;
                 }
 
                 _ => {}
             }
+            app.needs_redraw = true;
         }
 
         Event::Mouse(m) => match m.kind {
             MouseEventKind::ScrollUp   => {
                 app.scroll_offset = app.scroll_offset.saturating_sub(1);
                 if app.selected_proc > 0 { app.selected_proc -= 1; }
+                app.needs_redraw = true;
             }
             MouseEventKind::ScrollDown => {
                 app.scroll_offset += 1;
                 app.selected_proc  += 1;
+                app.needs_redraw = true;
             }
-            _ => {}
+            _ => {} // mouse move — do NOT set needs_redraw; avoids constant redraws
         },
 
-        Event::Resize(_, _) => {} // ratatui handles resize automatically
+        Event::Resize(_, _) => {
+            app.needs_redraw = true;
+        }
 
         _ => {}
     }
@@ -122,9 +140,8 @@ pub async fn handle_events(app: &mut AppState) -> Result<bool> {
 }
 
 fn kill_selected(app: &AppState, force: bool) {
-    let state = app.state.read();
-    let procs = &state.processes;
-    if let Some(proc) = procs.get(app.selected_proc) {
+    // proc_cache is sorted+filtered — selected_proc indexes into it correctly.
+    if let Some(proc) = app.proc_cache.get(app.selected_proc) {
         let pid = proc.pid as i32;
         let sig = if force { libc::SIGKILL } else { libc::SIGTERM };
         // SAFETY: sending signal to process; without root, can only reach own processes.

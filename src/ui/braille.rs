@@ -10,12 +10,9 @@ const DOT_MAP: [[u8; 4]; 2] = [
     [0x08, 0x10, 0x20, 0x80], // column 1 (right)
 ];
 
-/// Convert a slice of values into a Braille sparkline string.
+/// Convert a slice of u64 values into a Braille sparkline string.
 ///
-/// * `data`   – historical samples (any numeric type mapped via u64)
-/// * `width`  – desired output character width (each char = 2 data points)
-/// * `height` – desired output row count    (each row = 4 data levels)
-///
+/// Avoids all intermediate Vec allocations — works directly on the input slice.
 /// Returns a `Vec<String>` where index 0 is the TOP row.
 pub fn render(data: &[u64], width: usize, height: usize) -> Vec<String> {
     if width == 0 || height == 0 || data.is_empty() {
@@ -24,38 +21,93 @@ pub fn render(data: &[u64], width: usize, height: usize) -> Vec<String> {
 
     let total_cols = width * 2; // each braille char covers 2 data columns
     let total_rows = height * 4; // each braille char covers 4 data rows
+    let data_len = data.len();
 
-    // Take the most recent `total_cols` samples; pad with 0 on the left.
-    let padded: Vec<u64> = if data.len() >= total_cols {
-        data[data.len() - total_cols..].to_vec()
-    } else {
-        let mut v = vec![0u64; total_cols - data.len()];
-        v.extend_from_slice(data);
-        v
+    // Work on the last `total_cols` samples; pad with 0 on the left.
+    let window_start = data_len.saturating_sub(total_cols);
+    let window = &data[window_start..]; // len = min(data_len, total_cols)
+    let padding = total_cols.saturating_sub(data_len); // leading zero columns
+
+    let max_val = window.iter().max().copied().unwrap_or(1).max(1);
+
+    // Map column index → normalised height — no heap allocation.
+    let col_val = |col: usize| -> usize {
+        if col < padding { return 0; }
+        let v = window[col - padding];
+        ((v as f64 / max_val as f64) * total_rows as f64).round() as usize
     };
 
-    let max_val = *padded.iter().max().unwrap_or(&1);
-    let max_val = max_val.max(1);
+    build_rows(width, height, total_rows, col_val)
+}
 
-    // Normalise to [0, total_rows]
-    let normalised: Vec<usize> = padded
-        .iter()
-        .map(|&v| ((v as f64 / max_val as f64) * total_rows as f64).round() as usize)
-        .collect();
+/// Like `render()` but normalises against a fixed caller-supplied `max_val`.
+/// Use for absolute scales (e.g. RAM% stored as `pct × 100`, pass `max_val = 10_000`).
+pub fn render_absolute(data: &[u64], max_val: u64, width: usize, height: usize) -> Vec<String> {
+    if width == 0 || height == 0 || data.is_empty() {
+        return vec![" ".repeat(width); height];
+    }
 
-    let mut rows: Vec<String> = Vec::with_capacity(height);
+    let total_cols = width * 2;
+    let total_rows = height * 4;
+    let data_len = data.len();
+
+    let window_start = data_len.saturating_sub(total_cols);
+    let window = &data[window_start..];
+    let padding = total_cols.saturating_sub(data_len);
+    let max_v = max_val.max(1);
+
+    let col_val = |col: usize| -> usize {
+        if col < padding { return 0; }
+        let v = window[col - padding];
+        ((v as f64 / max_v as f64) * total_rows as f64)
+            .round()
+            .clamp(0.0, total_rows as f64) as usize
+    };
+
+    build_rows(width, height, total_rows, col_val)
+}
+
+/// Like `render()` but accepts `f32` values (e.g. CPU % history 0.0..100.0).
+/// Avoids the caller needing to convert to `Vec<u64>` first.
+pub fn render_f32(data: &[f32], width: usize, height: usize) -> Vec<String> {
+    if width == 0 || height == 0 || data.is_empty() {
+        return vec![" ".repeat(width); height];
+    }
+
+    let total_cols = width * 2;
+    let total_rows = height * 4;
+    let data_len = data.len();
+
+    let window_start = data_len.saturating_sub(total_cols);
+    let window = &data[window_start..];
+    let padding = total_cols.saturating_sub(data_len);
+    let max_val = window.iter().cloned().fold(0.0_f32, f32::max).max(1.0);
+
+    let col_val = |col: usize| -> usize {
+        if col < padding { return 0; }
+        let v = window[col - padding];
+        ((v / max_val) * total_rows as f32).round() as usize
+    };
+
+    build_rows(width, height, total_rows, col_val)
+}
+
+/// Shared row-building logic used by all render variants.
+/// `col_val(col)` maps a column index (0..width*2) → normalised height.
+#[inline]
+fn build_rows(width: usize, height: usize, total_rows: usize, col_val: impl Fn(usize) -> usize) -> Vec<String> {
+    let mut rows = Vec::with_capacity(height);
 
     for row_idx in 0..height {
-        // row_idx 0 = top → braille rows 0..3 from the top
-        // The TOP braille row corresponds to the HIGHEST data levels.
-        let row_top = total_rows - row_idx * 4;      // inclusive top level
-        let row_bot = row_top.saturating_sub(4);     // exclusive bottom level
+        // row_idx 0 = top → braille rows covering the highest data levels.
+        let row_top = total_rows - row_idx * 4; // inclusive top level
+        let row_bot = row_top.saturating_sub(4); // exclusive bottom level
 
-        let mut line = String::with_capacity(width * 3);
+        let mut line = String::with_capacity(width * 3); // braille chars are 3 bytes each
 
         for col in 0..width {
-            let left_val  = normalised[col * 2];
-            let right_val = normalised[col * 2 + 1];
+            let left_val  = col_val(col * 2);
+            let right_val = col_val(col * 2 + 1);
 
             let mut braille: u32 = BRAILLE_BASE;
 

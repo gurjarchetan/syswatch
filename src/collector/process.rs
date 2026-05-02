@@ -7,13 +7,12 @@ pub struct ProcessInfo {
     pub user:     String,
     pub cpu_pct:  f32,
     pub mem_kb:   u64,
-    pub mem_pct:  f32,
+    pub mem_pct:     f32,
     /// Single-char status: R/S/D/T/Z/I/?
-    pub status:   String,
+    pub status:      &'static str,
     /// Full status label for display
-    pub status_full: String,
-    pub priority: i32,
-    pub threads:  u32,
+    pub status_full: &'static str,
+    pub threads:     u32,
 }
 
 /// Aggregate process state counts shown in the summary bar.
@@ -52,10 +51,9 @@ pub fn collect(sys: &System) -> (Vec<ProcessInfo>, ProcSummary) {
             cpu_pct:     p.cpu_usage(),
             mem_kb:      p.memory() / 1024,
             mem_pct:     p.memory() as f32 / total_mem as f32 * 100.0,
-            status:      sc.to_string(),
-            status_full: sf.to_string(),
+            status:      sc,
+            status_full: sf,
             threads:     p.tasks().map(|t| t.len() as u32).unwrap_or(1),
-            priority:    0,
         }
     }).collect();
 

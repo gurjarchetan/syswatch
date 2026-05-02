@@ -105,9 +105,9 @@ pub struct DiskIoState {
 
 /// Read /proc/mounts and call statvfs for each relevant mount point.
 /// This surfaces real block devices + useful tmpfs entries.
-pub fn collect(_unused: &sysinfo::Disks, io_state: &mut DiskIoState) -> Vec<DiskStats> {
+pub fn collect(_unused: &sysinfo::Disks, io_state: &mut DiskIoState, interval_ms: u64) -> Vec<DiskStats> {
     let current = read_diskstats();
-    const INTERVAL_MS: u64 = 500;
+    let interval_ms = interval_ms.max(100);
     const SECTOR_SIZE: u64 = 512;
 
     let mounts_data = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
@@ -156,10 +156,10 @@ pub fn collect(_unused: &sysinfo::Disks, io_state: &mut DiskIoState) -> Vec<Disk
                 let d_rsect  = cur.read_sectors.saturating_sub(prev.read_sectors);
                 let d_wsect  = cur.write_sectors.saturating_sub(prev.write_sectors);
                 (
-                    d_rsect * SECTOR_SIZE * 1000 / INTERVAL_MS,
-                    d_wsect * SECTOR_SIZE * 1000 / INTERVAL_MS,
-                    d_reads  * 1000 / INTERVAL_MS,
-                    d_writes * 1000 / INTERVAL_MS,
+                    d_rsect * SECTOR_SIZE * 1000 / interval_ms,
+                    d_wsect * SECTOR_SIZE * 1000 / interval_ms,
+                    d_reads  * 1000 / interval_ms,
+                    d_writes * 1000 / interval_ms,
                 )
             } else {
                 (0, 0, 0, 0)

@@ -1,5 +1,4 @@
 use sysinfo::Networks;
-use super::HISTORY_LEN;
 
 #[derive(Default, Clone)]
 pub struct NetStats {
@@ -40,33 +39,23 @@ impl NetStats {
     }
 }
 
-/// `old` carries accumulated totals; we diff against fresh values.
-pub fn collect(nets: &Networks, old: &mut NetStats) -> NetStats {
+/// Returns `(rx_bps, tx_bps, interfaces)` for the current refresh interval.
+/// History management is done by the caller (spawn_collector) using local
+/// VecDeque buffers — no cloning of history Vecs inside this function.
+pub fn collect_instant(nets: &Networks, interval_ms: u64) -> (u64, u64, Vec<IfaceStats>) {
+    // interval_ms is the actual measurement window; convert to per-second rate.
+    let ticks_per_sec = 1000u64 / interval_ms.max(1);
     let mut rx_bps = 0u64;
     let mut tx_bps = 0u64;
     let mut interfaces = Vec::new();
 
     for (name, data) in nets.iter() {
-        // sysinfo gives bytes received/transmitted per refresh interval
-        let rx = data.received();
-        let tx = data.transmitted();
-        // Multiply by 2 since we refresh every 500ms
-        let rx_s = rx * 2;
-        let tx_s = tx * 2;
-        rx_bps += rx_s;
-        tx_bps += tx_s;
-        interfaces.push(IfaceStats { name: name.clone(), rx_bps: rx_s, tx_bps: tx_s });
+        let rx = data.received().saturating_mul(ticks_per_sec);
+        let tx = data.transmitted().saturating_mul(ticks_per_sec);
+        rx_bps = rx_bps.saturating_add(rx);
+        tx_bps = tx_bps.saturating_add(tx);
+        interfaces.push(IfaceStats { name: name.clone(), rx_bps: rx, tx_bps: tx });
     }
 
-    let total_rx = old.total_rx + rx_bps / 2;
-    let total_tx = old.total_tx + tx_bps / 2;
-
-    let mut rx_history = old.rx_history.clone();
-    let mut tx_history = old.tx_history.clone();
-    rx_history.push(rx_bps);
-    tx_history.push(tx_bps);
-    if rx_history.len() > HISTORY_LEN { rx_history.drain(0..rx_history.len() - HISTORY_LEN); }
-    if tx_history.len() > HISTORY_LEN { tx_history.drain(0..tx_history.len() - HISTORY_LEN); }
-
-    NetStats { rx_bps, tx_bps, total_rx, total_tx, rx_history, tx_history, interfaces }
+    (rx_bps, tx_bps, interfaces)
 }

@@ -1,4 +1,3 @@
-use super::HISTORY_LEN;
 use sysinfo::System;
 
 #[derive(Default, Clone)]
@@ -48,13 +47,4 @@ fn read_load_avg() -> [f64; 3] {
         return [a, b, c];
     }
     [0.0; 3]
-}
-
-pub fn merge_history(old: &[f32], new_val: f32) -> Vec<f32> {
-    let mut h = old.to_vec();
-    h.push(new_val);
-    if h.len() > HISTORY_LEN {
-        h.drain(0..h.len() - HISTORY_LEN);
-    }
-    h
 }
