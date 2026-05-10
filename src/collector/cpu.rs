@@ -39,12 +39,8 @@ pub fn collect(sys: &System) -> CpuStats {
 }
 
 fn read_load_avg() -> [f64; 3] {
-    if let Ok(s) = std::fs::read_to_string("/proc/loadavg") {
-        let mut parts = s.split_whitespace();
-        let a = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
-        let b = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
-        let c = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
-        return [a, b, c];
-    }
-    [0.0; 3]
+    // getloadavg is POSIX — works on Linux and macOS.
+    let mut avg = [0.0f64; 3];
+    let ret = unsafe { libc::getloadavg(avg.as_mut_ptr(), 3) };
+    if ret >= 0 { avg } else { [0.0; 3] }
 }

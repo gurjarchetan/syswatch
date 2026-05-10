@@ -1,4 +1,7 @@
+#[cfg(target_os = "linux")]
 use std::collections::HashMap;
+
+#[cfg(target_os = "linux")]
 use std::ffi::CString;
 
 #[derive(Default, Clone)]
@@ -39,6 +42,7 @@ impl DiskStats {
 }
 
 /// Raw counters read from /proc/diskstats per device.
+#[cfg(target_os = "linux")]
 #[derive(Default, Clone)]
 struct RawIo {
     reads:        u64,
@@ -48,6 +52,7 @@ struct RawIo {
 }
 
 /// Parse /proc/diskstats into a map keyed by device name.
+#[cfg(target_os = "linux")]
 fn read_diskstats() -> HashMap<String, RawIo> {
     let mut map = HashMap::new();
     if let Ok(data) = std::fs::read_to_string("/proc/diskstats") {
@@ -68,6 +73,7 @@ fn read_diskstats() -> HashMap<String, RawIo> {
 }
 
 /// Strip the last path component to get the kernel device name.
+#[cfg(target_os = "linux")]
 fn dev_from_name(raw_name: &str) -> String {
     std::path::Path::new(raw_name)
         .file_name()
@@ -76,6 +82,7 @@ fn dev_from_name(raw_name: &str) -> String {
 }
 
 /// Filesystem types to skip completely.
+#[cfg(target_os = "linux")]
 const SKIP_FS: &[&str] = &[
     "squashfs", "proc", "sysfs", "devpts", "cgroup", "cgroup2",
     "pstore", "bpf", "tracefs", "debugfs", "fusectl", "securityfs",
@@ -84,6 +91,7 @@ const SKIP_FS: &[&str] = &[
 ];
 
 /// Mount path prefixes to skip.
+#[cfg(target_os = "linux")]
 const SKIP_MOUNT_PREFIX: &[&str] = &[
     "/run/credentials/",
     "/proc/",
@@ -92,19 +100,26 @@ const SKIP_MOUNT_PREFIX: &[&str] = &[
 ];
 
 /// For tmpfs, only show mounts that are meaningful to a user.
+#[cfg(target_os = "linux")]
 fn is_useful_tmpfs(mount: &str) -> bool {
     matches!(mount, "/dev/shm" | "/tmp" | "/run")
         || mount.starts_with("/run/user/")
 }
 
 /// State carried between ticks for I/O delta calculation.
+#[cfg(target_os = "linux")]
 #[derive(Default, Clone)]
 pub struct DiskIoState {
     prev: HashMap<String, RawIo>,
 }
 
+#[cfg(not(target_os = "linux"))]
+#[derive(Default, Clone)]
+pub struct DiskIoState;
+
 /// Read /proc/mounts and call statvfs for each relevant mount point.
 /// This surfaces real block devices + useful tmpfs entries.
+#[cfg(target_os = "linux")]
 pub fn collect(_unused: &sysinfo::Disks, io_state: &mut DiskIoState, interval_ms: u64) -> Vec<DiskStats> {
     let current = read_diskstats();
     let interval_ms = interval_ms.max(100);
@@ -181,5 +196,39 @@ pub fn collect(_unused: &sysinfo::Disks, io_state: &mut DiskIoState, interval_ms
 
     io_state.prev = current;
     result
+}
+
+/// macOS: enumerate volumes via sysinfo::Disks (APFS, HFS+, etc.).
+/// I/O counters are not available without IOKit and are reported as zero.
+#[cfg(target_os = "macos")]
+pub fn collect(disks: &sysinfo::Disks, _io_state: &mut DiskIoState, _interval_ms: u64) -> Vec<DiskStats> {
+    const SKIP_FS_MACOS: &[&str] = &["devfs", "autofs", "mtmfs", "map"];
+
+    disks.iter()
+        .filter(|d| {
+            let fs    = d.file_system().to_string_lossy();
+            let mount = d.mount_point().to_string_lossy();
+            !SKIP_FS_MACOS.iter().any(|&s| fs.starts_with(s))
+                && !mount.starts_with("/private/var/folders/")
+                && d.total_space() > 0
+        })
+        .map(|d| {
+            let total_kb = d.total_space() / 1024;
+            let avail_kb = d.available_space() / 1024;
+            let used_kb  = total_kb.saturating_sub(avail_kb);
+            DiskStats {
+                name:       d.name().to_string_lossy().to_string(),
+                mount:      d.mount_point().to_string_lossy().to_string(),
+                fs_type:    d.file_system().to_string_lossy().to_string(),
+                total_kb,
+                used_kb,
+                avail_kb,
+                read_bps:   0,
+                write_bps:  0,
+                read_iops:  0,
+                write_iops: 0,
+            }
+        })
+        .collect()
 }
 

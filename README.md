@@ -205,11 +205,23 @@ Real-time bandwidth monitoring with per-interface breakdown and historical spark
 
 ## Installation
 
+### Option 0 — One-liner (Linux + macOS)
+
+Works on all distributions and macOS. Detects your OS and architecture automatically. No root required.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.sh | bash
+```
+
+Downloads the correct binary for your platform, places it in `~/.local/bin`, and adds it to your `$PATH`.
+
+---
+
 ### Option 1 — Pre-built `.deb` (Debian / Ubuntu)
 
 ```bash
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.6.0_amd64.deb
-sudo dpkg -i syswatch_0.6.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.7.0_amd64.deb
+sudo dpkg -i syswatch_0.7.0_amd64.deb
 syswatch
 ```
 
@@ -222,19 +234,40 @@ sudo snap install syswatch
 ### Option 3 — Pre-built `.rpm` (RHEL / Fedora / Amazon Linux)
 
 ```bash
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.6.0-1.x86_64.rpm
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-1.x86_64.rpm
 
 # Fedora / RHEL 8+ / Amazon Linux 2023
-sudo dnf install ./syswatch-0.6.0-1.x86_64.rpm
+sudo dnf install ./syswatch-0.7.0-1.x86_64.rpm
 
 # CentOS 7 / Amazon Linux 2
-sudo yum install ./syswatch-0.6.0-1.x86_64.rpm
+sudo yum install ./syswatch-0.7.0-1.x86_64.rpm
 
 # Raw rpm
-sudo rpm -i syswatch-0.6.0-1.x86_64.rpm
+sudo rpm -i syswatch-0.7.0-1.x86_64.rpm
 ```
 
-### Option 4 — Install script (any Linux distro)
+### Option 4 — macOS (pre-built binary)
+
+**Apple Silicon (M1/M2/M3):**
+```bash
+curl -LO https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-macos-aarch64.tar.gz
+tar -xzf syswatch-0.7.0-macos-aarch64.tar.gz
+sudo mv syswatch /usr/local/bin/
+syswatch
+```
+
+**Intel Mac:**
+```bash
+curl -LO https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-macos-x86_64.tar.gz
+tar -xzf syswatch-0.7.0-macos-x86_64.tar.gz
+sudo mv syswatch /usr/local/bin/
+syswatch
+```
+
+> **First run on macOS:** If Gatekeeper blocks the binary, run:
+> `xattr -d com.apple.quarantine /usr/local/bin/syswatch`
+
+### Option 5 — Install script (any Linux distro)
 
 Works on all distributions — Debian, Ubuntu, RHEL, CentOS, Amazon Linux, Fedora, Arch, Alpine, openSUSE, and more. No root required.
 
@@ -244,7 +277,7 @@ curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.
 
 Downloads the correct binary for your architecture, places it in `~/.local/bin`, and adds it to your `$PATH`.
 
-### Option 5 — Build from source
+### Option 6 — Build from source
 
 **Requires:** Rust 1.75+ — install via [rustup](https://rustup.rs)
 
@@ -384,7 +417,7 @@ syswatch/
 ```bash
 cargo install cargo-deb
 cargo deb
-# → target/debian/syswatch_0.6.0_amd64.deb
+# → target/debian/syswatch_0.7.0_amd64.deb
 ```
 
 **RHEL / Fedora / Amazon Linux `.rpm`**
@@ -393,7 +426,7 @@ cargo deb
 cargo install cargo-generate-rpm
 cargo build --release
 cargo generate-rpm
-# → target/generate-rpm/syswatch-0.6.0-1.x86_64.rpm
+# → target/generate-rpm/syswatch-0.7.0-1.x86_64.rpm
 ```
 
 ---
@@ -571,10 +604,10 @@ Mount points are discovered automatically via `/proc/mounts`. The I/O sub-row (`
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.6.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.7.0_amd64.deb
 
 # Install
-sudo dpkg -i syswatch_0.6.0_amd64.deb
+sudo dpkg -i syswatch_0.7.0_amd64.deb
 
 # Run
 syswatch
@@ -590,28 +623,28 @@ sudo snap install syswatch
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.6.0-1.x86_64.rpm
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-1.x86_64.rpm
 
 # Install (Amazon Linux / RHEL / CentOS / Fedora)
-sudo rpm -i syswatch-0.6.0-1.x86_64.rpm
+sudo rpm -i syswatch-0.7.0-1.x86_64.rpm
 # or with dnf (Fedora / RHEL 8+ / Amazon Linux 2023)
-sudo dnf install ./syswatch-0.6.0-1.x86_64.rpm
+sudo dnf install ./syswatch-0.7.0-1.x86_64.rpm
 # or with yum (CentOS 7 / Amazon Linux 2)
-sudo yum install ./syswatch-0.6.0-1.x86_64.rpm
+sudo yum install ./syswatch-0.7.0-1.x86_64.rpm
 
 # Run
 syswatch
 ```
 
-### Option 4 — Install script (any Linux distro)
+### Option 4 — Install script (Linux + macOS)
 
-Works on **all** distributions — Debian, Ubuntu, RHEL, CentOS, Amazon Linux, Fedora, Arch, Alpine, openSUSE, and more. No root required.
+Works on **all** distributions and macOS — Debian, Ubuntu, RHEL, CentOS, Amazon Linux, Fedora, Arch, Alpine, openSUSE, macOS (Intel + Apple Silicon), and more. No root required.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.sh | bash
 ```
 
-This downloads the correct binary for your architecture, places it in `~/.local/bin`, and adds it to your `$PATH`.
+This downloads the correct binary for your platform and architecture, places it in `~/.local/bin`, and adds it to your `$PATH`.
 
 ### Option 5 — Build from source
 
@@ -759,7 +792,7 @@ input/
 ```bash
 cargo install cargo-deb
 cargo deb
-# Output: target/debian/syswatch_0.6.0_amd64.deb
+# Output: target/debian/syswatch_0.7.0_amd64.deb
 ```
 
 **RHEL / CentOS / Amazon Linux / Fedora (`.rpm`)**
@@ -767,7 +800,7 @@ cargo deb
 cargo install cargo-generate-rpm
 cargo build --release
 cargo generate-rpm
-# Output: target/generate-rpm/syswatch-0.6.0-1.x86_64.rpm
+# Output: target/generate-rpm/syswatch-0.7.0-1.x86_64.rpm
 ```
 
 ---
