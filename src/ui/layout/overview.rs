@@ -71,9 +71,9 @@ fn render_proc_snapshot(f: &mut Frame, area: Rect, app: &AppState) {
     let summary_zombie   = state.proc_summary.zombie;
 
     let inner_w   = (area.width as usize).saturating_sub(2).max(20);
-    // Fixed columns: 6(pid)+2+16(name)+8(user)+space(1) = 33 + 2×(6+2) value cols + 4 status
-    // Available for 2 bars: inner_w - 49
-    let bar_w     = ((inner_w.saturating_sub(49)) / 2).clamp(4, 8);
+    // Fixed columns: 7(pid)+2+16(name)+8(user)+space(1) = 34 + 2×(8+2) value cols + 4 status
+    // Available for 2 bars: inner_w - 50
+    let bar_w     = ((inner_w.saturating_sub(50)) / 2).clamp(4, 8);
     let sep_w     = inner_w;
     // visible rows: area height - 2 (border) - 2 (summary + colhdr) - 1 (sep)
     let max_rows  = (area.height as usize).saturating_sub(5).max(1);
@@ -103,7 +103,7 @@ fn render_proc_snapshot(f: &mut Frame, area: Rect, app: &AppState) {
 
     // ── column header ─────────────────────────────────────────────────────
     lines.push(Line::from(vec![
-        Span::styled(format!("{:>6}  {:<16} {:<8}", "PID", "NAME", "USER"),
+        Span::styled(format!("{:>7}  {:<16} {:<8}", "PID", "NAME", "USER"),
             theme::dim_style()),
         Span::styled(format!(" {:>5}  {:>bar_w$}", "CPU%", ""),
             Style::default().fg(theme::C_TEAL).add_modifier(Modifier::BOLD)),
@@ -135,7 +135,7 @@ fn render_proc_snapshot(f: &mut Frame, area: Rect, app: &AppState) {
 
         lines.push(Line::from(vec![
             Span::styled(
-                format!("{:>6}  {:<16} {:<8}",
+                format!("{:>7}  {:<16} {:<8}",
                     proc.pid,
                     crate::ui::truncate(&proc.name, 14),
                     crate::ui::truncate(&proc.user, 7)),

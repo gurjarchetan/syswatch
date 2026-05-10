@@ -208,8 +208,8 @@ Real-time bandwidth monitoring with per-interface breakdown and historical spark
 ### Option 1 — Pre-built `.deb` (Debian / Ubuntu)
 
 ```bash
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.5.0_amd64.deb
-sudo dpkg -i syswatch_0.5.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.6.0_amd64.deb
+sudo dpkg -i syswatch_0.6.0_amd64.deb
 syswatch
 ```
 
@@ -222,16 +222,16 @@ sudo snap install syswatch
 ### Option 3 — Pre-built `.rpm` (RHEL / Fedora / Amazon Linux)
 
 ```bash
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.5.0-1.x86_64.rpm
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.6.0-1.x86_64.rpm
 
 # Fedora / RHEL 8+ / Amazon Linux 2023
-sudo dnf install ./syswatch-0.5.0-1.x86_64.rpm
+sudo dnf install ./syswatch-0.6.0-1.x86_64.rpm
 
 # CentOS 7 / Amazon Linux 2
-sudo yum install ./syswatch-0.5.0-1.x86_64.rpm
+sudo yum install ./syswatch-0.6.0-1.x86_64.rpm
 
 # Raw rpm
-sudo rpm -i syswatch-0.5.0-1.x86_64.rpm
+sudo rpm -i syswatch-0.6.0-1.x86_64.rpm
 ```
 
 ### Option 4 — Install script (any Linux distro)
@@ -384,7 +384,7 @@ syswatch/
 ```bash
 cargo install cargo-deb
 cargo deb
-# → target/debian/syswatch_0.5.0_amd64.deb
+# → target/debian/syswatch_0.6.0_amd64.deb
 ```
 
 **RHEL / Fedora / Amazon Linux `.rpm`**
@@ -393,7 +393,7 @@ cargo deb
 cargo install cargo-generate-rpm
 cargo build --release
 cargo generate-rpm
-# → target/generate-rpm/syswatch-0.5.0-1.x86_64.rpm
+# → target/generate-rpm/syswatch-0.6.0-1.x86_64.rpm
 ```
 
 ---
@@ -571,10 +571,10 @@ Mount points are discovered automatically via `/proc/mounts`. The I/O sub-row (`
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.5.0_amd64.deb
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.6.0_amd64.deb
 
 # Install
-sudo dpkg -i syswatch_0.5.0_amd64.deb
+sudo dpkg -i syswatch_0.6.0_amd64.deb
 
 # Run
 syswatch
@@ -590,14 +590,14 @@ sudo snap install syswatch
 
 ```bash
 # Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.5.0-1.x86_64.rpm
+wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.6.0-1.x86_64.rpm
 
 # Install (Amazon Linux / RHEL / CentOS / Fedora)
-sudo rpm -i syswatch-0.5.0-1.x86_64.rpm
+sudo rpm -i syswatch-0.6.0-1.x86_64.rpm
 # or with dnf (Fedora / RHEL 8+ / Amazon Linux 2023)
-sudo dnf install ./syswatch-0.5.0-1.x86_64.rpm
+sudo dnf install ./syswatch-0.6.0-1.x86_64.rpm
 # or with yum (CentOS 7 / Amazon Linux 2)
-sudo yum install ./syswatch-0.5.0-1.x86_64.rpm
+sudo yum install ./syswatch-0.6.0-1.x86_64.rpm
 
 # Run
 syswatch
@@ -759,7 +759,7 @@ input/
 ```bash
 cargo install cargo-deb
 cargo deb
-# Output: target/debian/syswatch_0.5.0_amd64.deb
+# Output: target/debian/syswatch_0.6.0_amd64.deb
 ```
 
 **RHEL / CentOS / Amazon Linux / Fedora (`.rpm`)**
@@ -767,7 +767,7 @@ cargo deb
 cargo install cargo-generate-rpm
 cargo build --release
 cargo generate-rpm
-# Output: target/generate-rpm/syswatch-0.5.0-1.x86_64.rpm
+# Output: target/generate-rpm/syswatch-0.6.0-1.x86_64.rpm
 ```
 
 ---

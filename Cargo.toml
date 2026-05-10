@@ -1,6 +1,6 @@
 [package]
 name = "syswatch"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 description = "A high-performance, near-zero-footprint Linux system monitor TUI"
 authors = ["Chetan Gurjar <chetan04.2014@gmail.com>"]
