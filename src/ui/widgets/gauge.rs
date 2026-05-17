@@ -1,6 +1,6 @@
 // Re-export common gauge helpers used by layouts
-use ratatui::style::Color;
 use crate::ui::theme;
+use ratatui::style::Color;
 
 /// Build a coloured ASCII bar string.
 pub fn ascii_bar(pct: f64, width: usize) -> (String, Color) {

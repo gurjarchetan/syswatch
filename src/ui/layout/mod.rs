@@ -1,4 +1,4 @@
+pub mod disk;
+pub mod network;
 pub mod overview;
 pub mod processes;
-pub mod network;
-pub mod disk;

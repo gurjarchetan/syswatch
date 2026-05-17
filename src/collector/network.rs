@@ -19,23 +19,33 @@ pub struct NetStats {
 
 #[derive(Default, Clone)]
 pub struct IfaceStats {
-    pub name:   String,
+    pub name: String,
     pub rx_bps: u64,
     pub tx_bps: u64,
 }
 
 impl NetStats {
     pub fn fmt_speed(bps: u64) -> String {
-        if bps >= 1_073_741_824 { format!("{:.1} GB/s", bps as f64 / 1_073_741_824.0) }
-        else if bps >= 1_048_576 { format!("{:.1} MB/s", bps as f64 / 1_048_576.0) }
-        else if bps >= 1024      { format!("{:.1} KB/s", bps as f64 / 1024.0) }
-        else { format!("{} B/s", bps) }
+        if bps >= 1_073_741_824 {
+            format!("{:.1} GB/s", bps as f64 / 1_073_741_824.0)
+        } else if bps >= 1_048_576 {
+            format!("{:.1} MB/s", bps as f64 / 1_048_576.0)
+        } else if bps >= 1024 {
+            format!("{:.1} KB/s", bps as f64 / 1024.0)
+        } else {
+            format!("{} B/s", bps)
+        }
     }
     pub fn fmt_bytes(b: u64) -> String {
-        if b >= 1_073_741_824 { format!("{:.2} GiB", b as f64 / 1_073_741_824.0) }
-        else if b >= 1_048_576 { format!("{:.1} MiB", b as f64 / 1_048_576.0) }
-        else if b >= 1024      { format!("{:.1} KiB", b as f64 / 1024.0) }
-        else { format!("{} B", b) }
+        if b >= 1_073_741_824 {
+            format!("{:.2} GiB", b as f64 / 1_073_741_824.0)
+        } else if b >= 1_048_576 {
+            format!("{:.1} MiB", b as f64 / 1_048_576.0)
+        } else if b >= 1024 {
+            format!("{:.1} KiB", b as f64 / 1024.0)
+        } else {
+            format!("{} B", b)
+        }
     }
 }
 
@@ -54,7 +64,11 @@ pub fn collect_instant(nets: &Networks, interval_ms: u64) -> (u64, u64, Vec<Ifac
         let tx = data.transmitted().saturating_mul(ticks_per_sec);
         rx_bps = rx_bps.saturating_add(rx);
         tx_bps = tx_bps.saturating_add(tx);
-        interfaces.push(IfaceStats { name: name.clone(), rx_bps: rx, tx_bps: tx });
+        interfaces.push(IfaceStats {
+            name: name.clone(),
+            rx_bps: rx,
+            tx_bps: tx,
+        });
     }
 
     (rx_bps, tx_bps, interfaces)

@@ -1,21 +1,21 @@
-mod collector;
-mod ui;
-mod input;
 mod app;
+mod collector;
+mod input;
+mod ui;
 
-use std::sync::Arc;
-use parking_lot::RwLock;
 use anyhow::Result;
 use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    event::{EnableMouseCapture, DisableMouseCapture},
 };
+use parking_lot::RwLock;
 use ratatui::{backend::CrosstermBackend, Terminal};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use collector::{SharedState, SystemState, spawn_collector};
 use app::AppState;
+use collector::{spawn_collector, SharedState, SystemState};
 use input::ActiveTab;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -90,12 +90,15 @@ fn parse_args() -> Result<Option<Config>> {
                 i += 1;
                 let val = args.get(i).map(String::as_str).unwrap_or("");
                 start_tab = match val {
-                    "overview"   | "1" => ActiveTab::Overview,
-                    "processes"  | "2" => ActiveTab::Processes,
-                    "network"    | "3" => ActiveTab::Network,
-                    "disk"       | "4" => ActiveTab::Disk,
+                    "overview" | "1" => ActiveTab::Overview,
+                    "processes" | "2" => ActiveTab::Processes,
+                    "network" | "3" => ActiveTab::Network,
+                    "disk" | "4" => ActiveTab::Disk,
                     _ => {
-                        eprintln!("syswatch: unknown tab '{}'. Use: overview, processes, network, disk", val);
+                        eprintln!(
+                            "syswatch: unknown tab '{}'. Use: overview, processes, network, disk",
+                            val
+                        );
                         std::process::exit(1);
                     }
                 };
@@ -103,20 +106,29 @@ fn parse_args() -> Result<Option<Config>> {
             "-i" | "--interval" => {
                 i += 1;
                 let val = args.get(i).map(String::as_str).unwrap_or("500");
-                interval_ms = val.parse::<u64>().unwrap_or_else(|_| {
-                    eprintln!("syswatch: --interval must be a positive integer (milliseconds)");
-                    std::process::exit(1);
-                }).max(100);
+                interval_ms = val
+                    .parse::<u64>()
+                    .unwrap_or_else(|_| {
+                        eprintln!("syswatch: --interval must be a positive integer (milliseconds)");
+                        std::process::exit(1);
+                    })
+                    .max(100);
             }
             unknown => {
-                eprintln!("syswatch: unknown argument '{}'. Run 'syswatch --help' for usage.", unknown);
+                eprintln!(
+                    "syswatch: unknown argument '{}'. Run 'syswatch --help' for usage.",
+                    unknown
+                );
                 std::process::exit(1);
             }
         }
         i += 1;
     }
 
-    Ok(Some(Config { start_tab, interval_ms }))
+    Ok(Some(Config {
+        start_tab,
+        interval_ms,
+    }))
 }
 
 // Two worker threads are sufficient: one runs the render+event loop,
@@ -188,9 +200,12 @@ async fn main() -> Result<()> {
 
     // ── restore terminal ───────────────────────────────────────────────────────
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
 
     Ok(())
 }
-

@@ -1,7 +1,7 @@
+use crate::app::AppState;
+use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEventKind};
 use tokio::time::Duration;
-use anyhow::Result;
-use crate::app::AppState;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveTab {
@@ -45,27 +45,29 @@ pub async fn handle_events(app: &mut AppState, timeout: Duration) -> Result<bool
                 }
 
                 // Tab switching
-                KeyCode::F(1)  => app.active_tab = ActiveTab::Overview,
-                KeyCode::F(2)  => app.active_tab = ActiveTab::Processes,
-                KeyCode::F(3)  => app.active_tab = ActiveTab::Network,
-                KeyCode::F(4)  => app.active_tab = ActiveTab::Disk,
-                KeyCode::Tab   => {
+                KeyCode::F(1) => app.active_tab = ActiveTab::Overview,
+                KeyCode::F(2) => app.active_tab = ActiveTab::Processes,
+                KeyCode::F(3) => app.active_tab = ActiveTab::Network,
+                KeyCode::F(4) => app.active_tab = ActiveTab::Disk,
+                KeyCode::Tab => {
                     app.active_tab = match app.active_tab {
-                        ActiveTab::Overview  => ActiveTab::Processes,
+                        ActiveTab::Overview => ActiveTab::Processes,
                         ActiveTab::Processes => ActiveTab::Network,
-                        ActiveTab::Network   => ActiveTab::Disk,
-                        ActiveTab::Disk      => ActiveTab::Overview,
+                        ActiveTab::Network => ActiveTab::Disk,
+                        ActiveTab::Disk => ActiveTab::Overview,
                     };
                 }
 
                 // Scroll
                 KeyCode::Up => {
                     app.scroll_offset = app.scroll_offset.saturating_sub(1);
-                    if app.selected_proc > 0 { app.selected_proc -= 1; }
+                    if app.selected_proc > 0 {
+                        app.selected_proc -= 1;
+                    }
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     app.scroll_offset += 1;
-                    app.selected_proc  += 1;
+                    app.selected_proc += 1;
                 }
 
                 // Filter
@@ -116,14 +118,16 @@ pub async fn handle_events(app: &mut AppState, timeout: Duration) -> Result<bool
         }
 
         Event::Mouse(m) => match m.kind {
-            MouseEventKind::ScrollUp   => {
+            MouseEventKind::ScrollUp => {
                 app.scroll_offset = app.scroll_offset.saturating_sub(1);
-                if app.selected_proc > 0 { app.selected_proc -= 1; }
+                if app.selected_proc > 0 {
+                    app.selected_proc -= 1;
+                }
                 app.needs_redraw = true;
             }
             MouseEventKind::ScrollDown => {
                 app.scroll_offset += 1;
-                app.selected_proc  += 1;
+                app.selected_proc += 1;
                 app.needs_redraw = true;
             }
             _ => {} // mouse move — do NOT set needs_redraw; avoids constant redraws

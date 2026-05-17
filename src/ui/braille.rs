@@ -32,7 +32,9 @@ pub fn render(data: &[u64], width: usize, height: usize) -> Vec<String> {
 
     // Map column index → normalised height — no heap allocation.
     let col_val = |col: usize| -> usize {
-        if col < padding { return 0; }
+        if col < padding {
+            return 0;
+        }
         let v = window[col - padding];
         ((v as f64 / max_val as f64) * total_rows as f64).round() as usize
     };
@@ -57,7 +59,9 @@ pub fn render_absolute(data: &[u64], max_val: u64, width: usize, height: usize) 
     let max_v = max_val.max(1);
 
     let col_val = |col: usize| -> usize {
-        if col < padding { return 0; }
+        if col < padding {
+            return 0;
+        }
         let v = window[col - padding];
         ((v as f64 / max_v as f64) * total_rows as f64)
             .round()
@@ -84,7 +88,9 @@ pub fn render_f32(data: &[f32], width: usize, height: usize) -> Vec<String> {
     let max_val = window.iter().cloned().fold(0.0_f32, f32::max).max(1.0);
 
     let col_val = |col: usize| -> usize {
-        if col < padding { return 0; }
+        if col < padding {
+            return 0;
+        }
         let v = window[col - padding];
         ((v / max_val) * total_rows as f32).round() as usize
     };
@@ -95,7 +101,12 @@ pub fn render_f32(data: &[f32], width: usize, height: usize) -> Vec<String> {
 /// Shared row-building logic used by all render variants.
 /// `col_val(col)` maps a column index (0..width*2) → normalised height.
 #[inline]
-fn build_rows(width: usize, height: usize, total_rows: usize, col_val: impl Fn(usize) -> usize) -> Vec<String> {
+fn build_rows(
+    width: usize,
+    height: usize,
+    total_rows: usize,
+    col_val: impl Fn(usize) -> usize,
+) -> Vec<String> {
     let mut rows = Vec::with_capacity(height);
 
     for row_idx in 0..height {
@@ -106,7 +117,7 @@ fn build_rows(width: usize, height: usize, total_rows: usize, col_val: impl Fn(u
         let mut line = String::with_capacity(width * 3); // braille chars are 3 bytes each
 
         for col in 0..width {
-            let left_val  = col_val(col * 2);
+            let left_val = col_val(col * 2);
             let right_val = col_val(col * 2 + 1);
 
             let mut braille: u32 = BRAILLE_BASE;
@@ -139,5 +150,8 @@ pub fn sparkline_f32(data: &[f32], width: usize, max_hint: f32) -> String {
 
 /// Render a single-row sparkline from u64 values.
 pub fn sparkline_u64(data: &[u64], width: usize) -> String {
-    render(data, width, 1).into_iter().next().unwrap_or_default()
+    render(data, width, 1)
+        .into_iter()
+        .next()
+        .unwrap_or_default()
 }

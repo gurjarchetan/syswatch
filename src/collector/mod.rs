@@ -1,21 +1,21 @@
 pub mod cpu;
-pub mod memory;
 pub mod disk;
+pub mod memory;
 pub mod network;
 pub mod process;
 
-use std::sync::Arc;
-use parking_lot::RwLock;
-use tokio::time::{interval_at, Duration, Instant};
 use anyhow::Result;
+use parking_lot::RwLock;
+use std::sync::Arc;
 use sysinfo::{CpuRefreshKind, ProcessRefreshKind, ProcessesToUpdate};
+use tokio::time::{interval_at, Duration, Instant};
 
-use std::collections::VecDeque;
 use cpu::CpuStats;
+use disk::{DiskIoState, DiskStats};
 use memory::MemStats;
-use disk::{DiskStats, DiskIoState};
 use network::NetStats;
-use process::{ProcessInfo, ProcSummary};
+use process::{ProcSummary, ProcessInfo};
+use std::collections::VecDeque;
 
 pub const HISTORY_LEN: usize = 512;
 
@@ -57,25 +57,31 @@ fn get_private_ip() -> String {
 
 /// Fetch the public IP from api.ipify.org via a raw HTTP/1.0 request.
 async fn fetch_public_ip() -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
-    use tokio::io::{AsyncWriteExt, AsyncReadExt};
 
     let result: anyhow::Result<String> = async {
         let mut stream = tokio::time::timeout(
             Duration::from_secs(8),
             TcpStream::connect("api.ipify.org:80"),
-        ).await??;
-        stream.write_all(b"GET / HTTP/1.0\r\nHost: api.ipify.org\r\nConnection: close\r\n\r\n").await?;
+        )
+        .await??;
+        stream
+            .write_all(b"GET / HTTP/1.0\r\nHost: api.ipify.org\r\nConnection: close\r\n\r\n")
+            .await?;
         let mut buf = Vec::new();
-        tokio::time::timeout(
-            Duration::from_secs(8),
-            stream.read_to_end(&mut buf),
-        ).await??;
+        tokio::time::timeout(Duration::from_secs(8), stream.read_to_end(&mut buf)).await??;
         let resp = String::from_utf8_lossy(&buf);
-        let body = resp.split("\r\n\r\n").nth(1).unwrap_or("").trim().to_string();
+        let body = resp
+            .split("\r\n\r\n")
+            .nth(1)
+            .unwrap_or("")
+            .trim()
+            .to_string();
         anyhow::ensure!(!body.is_empty(), "empty response");
         Ok(body)
-    }.await;
+    }
+    .await;
 
     result.unwrap_or_else(|_| "unavailable".to_string())
 }
@@ -87,14 +93,15 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
     // Networks::new_with_refreshed_list() all do blocking /proc reads.
     // With worker_threads=2, calling them directly inside an async task
     // starves the render loop thread, freezing the UI during startup.
-    let (mut sys, mut disks_tracker, mut nets_tracker) =
-        tokio::task::spawn_blocking(|| (
+    let (mut sys, mut disks_tracker, mut nets_tracker) = tokio::task::spawn_blocking(|| {
+        (
             sysinfo::System::new_all(),
             sysinfo::Disks::new_with_refreshed_list(),
             sysinfo::Networks::new_with_refreshed_list(),
-        ))
-        .await
-        .map_err(|e| anyhow::anyhow!("collector init: {}", e))?;
+        )
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("collector init: {}", e))?;
     let mut disk_io_state = DiskIoState::default();
 
     // Gather one-time info
@@ -107,7 +114,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
             sysinfo::System::os_version().unwrap_or_default()
         );
         s.private_ip = get_private_ip();
-        s.public_ip  = "fetching…".to_string();
+        s.public_ip = "fetching…".to_string();
     }
 
     // Fetch public IP in background — updates state when ready.
@@ -132,17 +139,19 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
     // ── Collector-local history ring buffers (VecDeque → O(1) push/pop) ──────
     // These live here so the write lock never needs to read-then-clone the old
     // history from SharedState.  We only WRITE to SharedState, never read back.
-    let mut cpu_history:    VecDeque<f32> = VecDeque::with_capacity(HISTORY_LEN + 1);
+    let mut cpu_history: VecDeque<f32> = VecDeque::with_capacity(HISTORY_LEN + 1);
     let mut net_rx_history: VecDeque<u64> = VecDeque::with_capacity(HISTORY_LEN + 1);
     let mut net_tx_history: VecDeque<u64> = VecDeque::with_capacity(HISTORY_LEN + 1);
-    let mut mem_hist:       VecDeque<u64> = VecDeque::with_capacity(HISTORY_LEN + 1);
-    let mut net_total_rx:   u64 = 0;
-    let mut net_total_tx:   u64 = 0;
+    let mut mem_hist: VecDeque<u64> = VecDeque::with_capacity(HISTORY_LEN + 1);
+    let mut net_total_rx: u64 = 0;
+    let mut net_total_tx: u64 = 0;
 
     /// Push a value into a fixed-capacity ring buffer — O(1).
     #[inline]
     fn push_ring<T>(buf: &mut VecDeque<T>, val: T) {
-        if buf.len() >= HISTORY_LEN { buf.pop_front(); }
+        if buf.len() >= HISTORY_LEN {
+            buf.pop_front();
+        }
         buf.push_back(val);
     }
 
@@ -157,7 +166,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         // CPU freq changes slowly; refresh it on tick 0 then every 10 ticks
         // (saves 16+ sysfs reads/tick on a multi-core machine).
         let cpu_kind = if tick % 10 == 0 {
-            CpuRefreshKind::everything()          // usage + freq (~5 s cadence)
+            CpuRefreshKind::everything() // usage + freq (~5 s cadence)
         } else {
             CpuRefreshKind::new().with_cpu_usage() // usage only
         };
@@ -179,7 +188,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         let new_cpu = cpu::collect(&sys);
         push_ring(&mut cpu_history, new_cpu.global);
 
-        let new_mem    = memory::collect(&sys);
+        let new_mem = memory::collect(&sys);
         let mem_sample = (new_mem.used_pct() * 100.0) as u64;
         push_ring(&mut mem_hist, mem_sample);
 
@@ -192,7 +201,11 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         push_ring(&mut net_tx_history, tx_bps);
 
         let new_disks = if tick % 6 == 0 {
-            Some(disk::collect(&disks_tracker, &mut disk_io_state, interval_ms))
+            Some(disk::collect(
+                &disks_tracker,
+                &mut disk_io_state,
+                interval_ms,
+            ))
         } else {
             None
         };
@@ -232,10 +245,10 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         // -- Network ---------------------------------------------------
         let mut rx_buf = std::mem::take(&mut s.network.rx_history);
         let mut tx_buf = std::mem::take(&mut s.network.tx_history);
-        s.network.rx_bps     = rx_bps;
-        s.network.tx_bps     = tx_bps;
-        s.network.total_rx   = net_total_rx;
-        s.network.total_tx   = net_total_tx;
+        s.network.rx_bps = rx_bps;
+        s.network.tx_bps = tx_bps;
+        s.network.total_rx = net_total_rx;
+        s.network.total_tx = net_total_tx;
         s.network.interfaces = interfaces;
         rx_buf.clear();
         let (a, b) = net_rx_history.as_slices();
@@ -252,9 +265,9 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
             s.disks = disks;
         }
         if let Some((procs, summary)) = proc_data {
-            s.processes    = procs;
+            s.processes = procs;
             s.proc_summary = summary;
-            s.proc_gen     = s.proc_gen.wrapping_add(1);
+            s.proc_gen = s.proc_gen.wrapping_add(1);
         }
         // lock releases here
 

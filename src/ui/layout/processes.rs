@@ -1,37 +1,49 @@
+use crate::app::AppState;
+use crate::collector::memory::MemStats;
+use crate::ui::theme;
 use ratatui::{
-    Frame,
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
+    Frame,
 };
-use crate::app::AppState;
-use crate::collector::memory::MemStats;
-use crate::ui::theme;
 
 fn status_style(status: &str) -> Style {
     match status {
-        "R" => Style::default().fg(theme::C_GREEN).add_modifier(Modifier::BOLD),
-        "Z" => Style::default().fg(theme::C_RED).add_modifier(Modifier::BOLD),
+        "R" => Style::default()
+            .fg(theme::C_GREEN)
+            .add_modifier(Modifier::BOLD),
+        "Z" => Style::default()
+            .fg(theme::C_RED)
+            .add_modifier(Modifier::BOLD),
         "T" => Style::default().fg(theme::C_YELLOW),
         "D" => Style::default().fg(theme::C_MAGENTA),
-        "X" => Style::default().fg(theme::C_RED).add_modifier(Modifier::DIM),
-        _   => Style::default().fg(theme::C_DIM),
+        "X" => Style::default()
+            .fg(theme::C_RED)
+            .add_modifier(Modifier::DIM),
+        _ => Style::default().fg(theme::C_DIM),
     }
 }
 
 /// Tiny inline bar for CPU/MEM columns  ████░░  (6 chars)
 fn pct_bar(pct: f32, width: usize) -> String {
-    let filled = ((pct / 100.0) * width as f32).round().clamp(0.0, width as f32) as usize;
+    let filled = ((pct / 100.0) * width as f32)
+        .round()
+        .clamp(0.0, width as f32) as usize;
     let mut s = String::with_capacity(width * 3); // '█' and '░' are each 3 bytes
-    for _ in 0..filled      { s.push('█'); }
-    for _ in filled..width  { s.push('░'); }
+    for _ in 0..filled {
+        s.push('█');
+    }
+    for _ in filled..width {
+        s.push('░');
+    }
     s
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     // Use pre-sorted+filtered cache — zero allocation on 6 of every 7 frames.
-    let procs   = &app.proc_cache;
+    let procs = &app.proc_cache;
     let summary = &app.proc_summary_cache;
 
     let mut lines: Vec<Line> = Vec::new();
@@ -41,21 +53,31 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
         Span::styled("Tasks ", theme::dim_style()),
         Span::styled(format!("{}", summary.total), theme::header_style()),
         Span::styled("  Run ", theme::dim_style()),
-        Span::styled(format!("{}", summary.running),
-            Style::default().fg(theme::C_GREEN).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            format!("{}", summary.running),
+            Style::default()
+                .fg(theme::C_GREEN)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("  Sleep ", theme::dim_style()),
-        Span::styled(format!("{}", summary.sleeping),
-            Style::default().fg(theme::C_BLUE)),
+        Span::styled(
+            format!("{}", summary.sleeping),
+            Style::default().fg(theme::C_BLUE),
+        ),
         Span::styled("  Idle ", theme::dim_style()),
         Span::styled(format!("{}", summary.other), theme::dim_style()),
         Span::styled("  Stop ", theme::dim_style()),
-        Span::styled(format!("{}", summary.stopped),
-            Style::default().fg(theme::C_YELLOW)),
+        Span::styled(
+            format!("{}", summary.stopped),
+            Style::default().fg(theme::C_YELLOW),
+        ),
         Span::styled("  Zombie ", theme::dim_style()),
         Span::styled(
             format!("{}", summary.zombie),
             if summary.zombie > 0 {
-                Style::default().fg(theme::C_RED).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(theme::C_RED)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 theme::dim_style()
             },
@@ -78,37 +100,51 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     };
     lines.push(Line::from(vec![
         Span::styled("Sort:", theme::dim_style()),
-        sort_btn("CPU",  app.sort_col == SortCol::Cpu),
-        sort_btn("MEM",  app.sort_col == SortCol::Mem),
-        sort_btn("PID",  app.sort_col == SortCol::Pid),
+        sort_btn("CPU", app.sort_col == SortCol::Cpu),
+        sort_btn("MEM", app.sort_col == SortCol::Mem),
+        sort_btn("PID", app.sort_col == SortCol::Pid),
         sort_btn("NAME", app.sort_col == SortCol::Name),
-        Span::styled("   /=filter  k=kill  K=SIGKILL  Esc=cancel", theme::dim_style()),
+        Span::styled(
+            "   /=filter  k=kill  K=SIGKILL  Esc=cancel",
+            theme::dim_style(),
+        ),
     ]));
 
     // ── column header ─────────────────────────────────────────────────────
     let mini_w = 6usize;
     lines.push(Line::from(vec![
-        Span::styled(format!("{:>7}  ", "PID"),          theme::header_style()),
-        Span::styled(format!("{:<18} ", "NAME"),          theme::header_style()),
-        Span::styled(format!("{:<9} ", "USER"),           theme::header_style()),
-        Span::styled(format!("{:>5}  {:>mini_w$}  ", "CPU%", ""),
-            Style::default().fg(theme::C_TEAL).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{:>5}  {:>mini_w$}  ", "MEM%", ""),
-            Style::default().fg(theme::C_BLUE).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("{:>7}  ", "PID"), theme::header_style()),
+        Span::styled(format!("{:<18} ", "NAME"), theme::header_style()),
+        Span::styled(format!("{:<9} ", "USER"), theme::header_style()),
+        Span::styled(
+            format!("{:>5}  {:>mini_w$}  ", "CPU%", ""),
+            Style::default()
+                .fg(theme::C_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{:>5}  {:>mini_w$}  ", "MEM%", ""),
+            Style::default()
+                .fg(theme::C_BLUE)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(format!("{:<3} {:>4}  ", "ST", "THR"), theme::header_style()),
     ]));
 
     // ── separator ─────────────────────────────────────────────────────────
     let sep_w = (area.width as usize).saturating_sub(2);
-    lines.push(Line::from(Span::styled("─".repeat(sep_w), theme::border_style())));
+    lines.push(Line::from(Span::styled(
+        "─".repeat(sep_w),
+        theme::border_style(),
+    )));
 
     // header = 4 rows, border = 2 → 6
     let visible_rows = (area.height as usize).saturating_sub(6);
-    let scroll_off   = app.scroll_offset;
+    let scroll_off = app.scroll_offset;
 
     for (idx, proc) in procs.iter().skip(scroll_off).take(visible_rows).enumerate() {
         let abs_idx = idx + scroll_off;
-        let is_sel  = abs_idx == app.selected_proc;
+        let is_sel = abs_idx == app.selected_proc;
         let is_kill = app.kill_confirm && is_sel;
 
         let row_style = if is_kill {
@@ -122,24 +158,40 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
             Style::default()
         };
 
-        let cpu_color = if is_sel || is_kill { row_style.fg.unwrap_or(theme::C_WHITE) }
-                        else { theme::pct_color_f32(proc.cpu_pct) };
-        let mem_color = if is_sel || is_kill { row_style.fg.unwrap_or(theme::C_WHITE) }
-                        else { theme::pct_color_f32(proc.mem_pct) };
+        let cpu_color = if is_sel || is_kill {
+            row_style.fg.unwrap_or(theme::C_WHITE)
+        } else {
+            theme::pct_color_f32(proc.cpu_pct)
+        };
+        let mem_color = if is_sel || is_kill {
+            row_style.fg.unwrap_or(theme::C_WHITE)
+        } else {
+            theme::pct_color_f32(proc.mem_pct)
+        };
 
         let cpu_bar = pct_bar(proc.cpu_pct, mini_w);
         let mem_bar = pct_bar(proc.mem_pct, mini_w);
 
         lines.push(Line::from(vec![
-            Span::styled(format!("{:>7}  ", proc.pid),                               row_style),
-            Span::styled(format!("{:<18} ", crate::ui::truncate(&proc.name, 16)),    row_style),
-            Span::styled(format!("{:<9} ", crate::ui::truncate(&proc.user, 8)),      row_style),
-            Span::styled(format!("{:>5.1}  ", proc.cpu_pct),
-                Style::default().fg(cpu_color).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:>7}  ", proc.pid), row_style),
+            Span::styled(
+                format!("{:<18} ", crate::ui::truncate(&proc.name, 16)),
+                row_style,
+            ),
+            Span::styled(
+                format!("{:<9} ", crate::ui::truncate(&proc.user, 8)),
+                row_style,
+            ),
+            Span::styled(
+                format!("{:>5.1}  ", proc.cpu_pct),
+                Style::default().fg(cpu_color).add_modifier(Modifier::BOLD),
+            ),
             Span::styled(cpu_bar, Style::default().fg(cpu_color)),
             Span::raw("  "),
-            Span::styled(format!("{:>5.1}  ", proc.mem_pct),
-                Style::default().fg(mem_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{:>5.1}  ", proc.mem_pct),
+                Style::default().fg(mem_color).add_modifier(Modifier::BOLD),
+            ),
             Span::styled(mem_bar, Style::default().fg(mem_color)),
             Span::raw("  "),
             Span::styled(format!("{:<3} ", proc.status), status_style(proc.status)),
@@ -158,7 +210,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     } else if app.filter_mode {
         lines.push(Line::from(vec![Span::styled(
             format!("  Filter ▸ {}▋", app.filter_text),
-            Style::default().fg(theme::C_YELLOW).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme::C_YELLOW)
+                .add_modifier(Modifier::BOLD),
         )]));
     }
 
@@ -182,37 +236,52 @@ fn render_detail_popup(
     app: &AppState,
     procs: &[crate::collector::process::ProcessInfo],
 ) {
-    let Some(proc) = app.detail_pid
+    let Some(proc) = app
+        .detail_pid
         .and_then(|pid| procs.iter().find(|p| p.pid == pid))
-    else { return };
+    else {
+        return;
+    };
 
     // ── Popup geometry: centred, 50 wide × 16 tall ────────────────────────
     let popup_w: u16 = 52.min(parent.width.saturating_sub(4));
     let popup_h: u16 = 16.min(parent.height.saturating_sub(4));
     let popup_x = parent.x + (parent.width.saturating_sub(popup_w)) / 2;
     let popup_y = parent.y + (parent.height.saturating_sub(popup_h)) / 2;
-    let popup_area = Rect { x: popup_x, y: popup_y, width: popup_w, height: popup_h };
+    let popup_area = Rect {
+        x: popup_x,
+        y: popup_y,
+        width: popup_w,
+        height: popup_h,
+    };
 
     f.render_widget(Clear, popup_area);
 
     let inner_w = (popup_w as usize).saturating_sub(4).max(20);
-    let bar_w   = inner_w.saturating_sub(12).clamp(8, 20);
+    let bar_w = inner_w.saturating_sub(12).clamp(8, 20);
 
     // Helper: gradient bar
     let make_bar = |pct: f32| -> Vec<Span<'static>> {
-        let filled = ((pct / 100.0) * bar_w as f32).round().clamp(0.0, bar_w as f32) as usize;
-        let color  = theme::pct_color_f32(pct);
-        let mut v  = vec![Span::styled("▕", theme::dim_style())];
+        let filled = ((pct / 100.0) * bar_w as f32)
+            .round()
+            .clamp(0.0, bar_w as f32) as usize;
+        let color = theme::pct_color_f32(pct);
+        let mut v = vec![Span::styled("▕", theme::dim_style())];
         for i in 0..bar_w {
             let pos_pct = (i as f64 / bar_w as f64) * 100.0;
             let ch = if i < filled { "█" } else { "░" };
-            let c  = if i < filled { theme::pct_color(pos_pct.max(pct as f64 * 0.3)) }
-                     else { theme::C_BORDER };
+            let c = if i < filled {
+                theme::pct_color(pos_pct.max(pct as f64 * 0.3))
+            } else {
+                theme::C_BORDER
+            };
             v.push(Span::styled(ch, Style::default().fg(c)));
         }
         v.push(Span::styled("▏", theme::dim_style()));
-        v.push(Span::styled(format!(" {:5.1}%", pct),
-            Style::default().fg(color).add_modifier(Modifier::BOLD)));
+        v.push(Span::styled(
+            format!(" {:5.1}%", pct),
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
+        ));
         v
     };
 
@@ -223,18 +292,21 @@ fn render_detail_popup(
         "Z" => theme::C_RED,
         "T" => theme::C_YELLOW,
         "D" => theme::C_MAGENTA,
-        _   => theme::C_DIM,
+        _ => theme::C_DIM,
     };
 
     let mut lines: Vec<Line> = vec![
         // Name + PID
         Line::from(vec![
-            Span::styled(format!("  {}", proc.name),
-                Style::default().fg(theme::C_ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("  {}", proc.name),
+                Style::default()
+                    .fg(theme::C_ACCENT)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(format!("  pid {}", proc.pid), theme::dim_style()),
         ]),
         Line::from(Span::styled(sep.clone(), theme::border_style())),
-
         // User + status
         Line::from(vec![
             Span::styled("  User   ", theme::dim_style()),
@@ -245,17 +317,23 @@ fn render_detail_popup(
                 Style::default().fg(st_color).add_modifier(Modifier::BOLD),
             ),
         ]),
-
         // Threads + memory
         Line::from(vec![
             Span::styled("  Threads ", theme::dim_style()),
-            Span::styled(format!("{}", proc.threads),
-                Style::default().fg(theme::C_WHITE).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{}", proc.threads),
+                Style::default()
+                    .fg(theme::C_WHITE)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("   Memory  ", theme::dim_style()),
-            Span::styled(MemStats::fmt_kb(proc.mem_kb),
-                Style::default().fg(theme::C_BLUE).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                MemStats::fmt_kb(proc.mem_kb),
+                Style::default()
+                    .fg(theme::C_BLUE)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]),
-
         Line::from(Span::styled(sep.clone(), theme::border_style())),
     ];
 
@@ -284,30 +362,34 @@ fn render_detail_popup(
     let block = Block::default()
         .title(Span::styled(" Process Detail ", theme::title_style()))
         .borders(Borders::ALL)
-        .border_style(theme::border_style_active());  // accent border to stand out
+        .border_style(theme::border_style_active()); // accent border to stand out
 
     f.render_widget(Paragraph::new(lines).block(block), popup_area);
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SortCol { Cpu, Mem, Pid, Name }
+pub enum SortCol {
+    Cpu,
+    Mem,
+    Pid,
+    Name,
+}
 
 impl SortCol {
     pub fn label(&self) -> &'static str {
         match self {
-            SortCol::Cpu  => "CPU",
-            SortCol::Mem  => "MEM",
-            SortCol::Pid  => "PID",
+            SortCol::Cpu => "CPU",
+            SortCol::Mem => "MEM",
+            SortCol::Pid => "PID",
             SortCol::Name => "NAME",
         }
     }
     pub fn next(self) -> Self {
         match self {
-            SortCol::Cpu  => SortCol::Mem,
-            SortCol::Mem  => SortCol::Pid,
-            SortCol::Pid  => SortCol::Name,
+            SortCol::Cpu => SortCol::Mem,
+            SortCol::Mem => SortCol::Pid,
+            SortCol::Pid => SortCol::Name,
             SortCol::Name => SortCol::Cpu,
         }
     }
 }
-

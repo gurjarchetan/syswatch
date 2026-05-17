@@ -29,7 +29,10 @@ pub fn collect(sys: &System) -> CpuStats {
 
     CpuStats {
         count: cores.len(),
-        brand: cpus.first().map(|c| c.brand().to_string()).unwrap_or_default(),
+        brand: cpus
+            .first()
+            .map(|c| c.brand().to_string())
+            .unwrap_or_default(),
         global,
         cores,
         freqs,
@@ -42,5 +45,9 @@ fn read_load_avg() -> [f64; 3] {
     // getloadavg is POSIX — works on Linux and macOS.
     let mut avg = [0.0f64; 3];
     let ret = unsafe { libc::getloadavg(avg.as_mut_ptr(), 3) };
-    if ret >= 0 { avg } else { [0.0; 3] }
+    if ret >= 0 {
+        avg
+    } else {
+        [0.0; 3]
+    }
 }
