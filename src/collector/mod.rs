@@ -102,6 +102,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
     })
     .await
     .map_err(|e| anyhow::anyhow!("collector init: {}", e))?;
+    #[allow(clippy::default_constructed_unit_structs)] // unit struct on non-Linux targets
     let mut disk_io_state = DiskIoState::default();
 
     // Gather one-time info
