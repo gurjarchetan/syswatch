@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   BINARY_NAME: syswatch
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # opt-in to Node.js 24 ahead of forced migration
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -135,6 +136,7 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-22.04
     needs: [build, deb]
+    if: startsWith(github.ref, 'refs/tags/')   # only run on tag pushes, not workflow_dispatch
     permissions:
       contents: write
 

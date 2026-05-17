@@ -166,7 +166,7 @@ pub fn collect(
         let fs = parts[2];
 
         // Skip unwanted fs types
-        if SKIP_FS.iter().any(|&f| f == fs) {
+        if SKIP_FS.contains(&fs) {
             continue;
         }
 

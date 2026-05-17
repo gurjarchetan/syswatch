@@ -90,7 +90,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
 
     // ── Braille RAM history graph ─────────────────────────────────────────
     // 4 content rows (2×bar+detail), 1 sep, border=2 → remaining = graph
-    let graph_h = inner_h.saturating_sub(5).max(0);
+    let graph_h = inner_h.saturating_sub(5);
     if graph_h >= 2 && !state.mem_history.is_empty() {
         let used_pct2 = mem.used_pct();
         lines.push(Line::from(Span::styled(

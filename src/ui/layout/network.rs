@@ -121,8 +121,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
     ]));
 
     // ── Braille graphs side-by-side ───────────────────────────────────────
-    let rx_data: Vec<u64> = net.rx_history.iter().copied().collect();
-    let tx_data: Vec<u64> = net.tx_history.iter().copied().collect();
+    let rx_data: Vec<u64> = net.rx_history.to_vec();
+    let tx_data: Vec<u64> = net.tx_history.to_vec();
     let rx_rows = braille::render(&rx_data, col_w / 2, graph_h);
     let tx_rows = braille::render(&tx_data, col_w / 2, graph_h);
 

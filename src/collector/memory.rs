@@ -4,7 +4,6 @@ use sysinfo::System;
 pub struct MemStats {
     pub total_kb: u64,
     pub used_kb: u64,
-    pub cached_kb: u64,
     pub free_kb: u64,
     pub swap_total_kb: u64,
     pub swap_used_kb: u64,
@@ -38,7 +37,6 @@ pub fn collect(sys: &System) -> MemStats {
     MemStats {
         total_kb: sys.total_memory() / 1024,
         used_kb: sys.used_memory() / 1024,
-        cached_kb: 0, // not directly exposed; approximated
         free_kb: sys.free_memory() / 1024,
         swap_total_kb: sys.total_swap() / 1024,
         swap_used_kb: sys.used_swap() / 1024,

@@ -212,7 +212,7 @@ fn render_proc_snapshot(f: &mut Frame, area: Rect, app: &AppState) {
         ]));
     }
 
-    let title = format!(" Processes — top by CPU (F2 for full view) ");
+    let title = " Processes — top by CPU (F2 for full view) ".to_string();
     let block = Block::default()
         .title(Span::styled(title, theme::title_style()))
         .borders(Borders::ALL)

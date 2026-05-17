@@ -165,7 +165,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         //
         // CPU freq changes slowly; refresh it on tick 0 then every 10 ticks
         // (saves 16+ sysfs reads/tick on a multi-core machine).
-        let cpu_kind = if tick % 10 == 0 {
+        let cpu_kind = if tick.is_multiple_of(10) {
             CpuRefreshKind::everything() // usage + freq (~5 s cadence)
         } else {
             CpuRefreshKind::new().with_cpu_usage() // usage only
@@ -175,12 +175,12 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         nets_tracker.refresh();
 
         // Processes: every 3rd tick (~1.5 s); tick=0 fires on startup.
-        if tick % 3 == 0 {
+        if tick.is_multiple_of(3) {
             sys.refresh_processes_specifics(ProcessesToUpdate::All, proc_refresh);
         }
 
         // Disks: every 6th tick (~3 s); tick=0 fires on startup.
-        if tick % 6 == 0 {
+        if tick.is_multiple_of(6) {
             disks_tracker.refresh();
         }
 
@@ -200,7 +200,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
         push_ring(&mut net_rx_history, rx_bps);
         push_ring(&mut net_tx_history, tx_bps);
 
-        let new_disks = if tick % 6 == 0 {
+        let new_disks = if tick.is_multiple_of(6) {
             Some(disk::collect(
                 &disks_tracker,
                 &mut disk_io_state,
@@ -210,7 +210,7 @@ pub async fn spawn_collector(state: SharedState, interval_ms: u64) -> Result<()>
             None
         };
 
-        let proc_data: Option<(Vec<ProcessInfo>, ProcSummary)> = if tick % 3 == 0 {
+        let proc_data: Option<(Vec<ProcessInfo>, ProcSummary)> = if tick.is_multiple_of(3) {
             Some(process::collect(&sys))
         } else {
             None

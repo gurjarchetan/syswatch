@@ -226,7 +226,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &AppState) {
 
     // Overlay detail popup if requested
     if app.show_proc_detail {
-        render_detail_popup(f, area, app, &procs);
+        render_detail_popup(f, area, app, procs);
     }
 }
 
@@ -376,6 +376,7 @@ pub enum SortCol {
 }
 
 impl SortCol {
+    #[allow(dead_code)]
     pub fn label(&self) -> &'static str {
         match self {
             SortCol::Cpu => "CPU",

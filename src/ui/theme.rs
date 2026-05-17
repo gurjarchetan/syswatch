@@ -45,6 +45,7 @@ pub fn dim_style() -> Style {
     Style::default().fg(C_DIM)
 }
 
+#[allow(dead_code)]
 pub fn value_style() -> Style {
     Style::default().fg(C_WHITE)
 }
@@ -56,6 +57,7 @@ pub fn highlight_style() -> Style {
         .add_modifier(Modifier::BOLD)
 }
 
+#[allow(dead_code)]
 pub fn tab_active_style() -> Style {
     Style::default()
         .fg(Color::Rgb(10, 10, 20))
@@ -63,6 +65,7 @@ pub fn tab_active_style() -> Style {
         .add_modifier(Modifier::BOLD)
 }
 
+#[allow(dead_code)]
 pub fn tab_inactive_style() -> Style {
     Style::default().fg(C_DIM)
 }

@@ -123,11 +123,11 @@ fn build_rows(
             let mut braille: u32 = BRAILLE_BASE;
 
             for (sample_val, col_idx) in [(left_val, 0usize), (right_val, 1usize)] {
-                for dot_row in 0..4usize {
+                            for (dot_row, &dot_bit) in DOT_MAP[col_idx].iter().enumerate() {
                     // dot_row 0 = topmost dot in the cell
                     let level = row_top - dot_row; // data level this dot represents
                     if level > row_bot && sample_val >= level {
-                        braille |= DOT_MAP[col_idx][dot_row] as u32;
+                        braille |= dot_bit as u32;
                     }
                 }
             }
@@ -142,6 +142,7 @@ fn build_rows(
 }
 
 /// Render a single-row sparkline from f32 values (0.0 .. max_hint).
+#[allow(dead_code)]
 pub fn sparkline_f32(data: &[f32], width: usize, max_hint: f32) -> String {
     let max = if max_hint <= 0.0 { 100.0_f32 } else { max_hint };
     let u: Vec<u64> = data.iter().map(|&v| (v / max * 1000.0) as u64).collect();
@@ -149,6 +150,7 @@ pub fn sparkline_f32(data: &[f32], width: usize, max_hint: f32) -> String {
 }
 
 /// Render a single-row sparkline from u64 values.
+#[allow(dead_code)]
 pub fn sparkline_u64(data: &[u64], width: usize) -> String {
     render(data, width, 1)
         .into_iter()
