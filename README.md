@@ -2,14 +2,14 @@
 
 <h1>◈ SysWatch</h1>
 
-<p><strong>A high-performance, near-zero-footprint Linux system monitor — built in Rust.</strong></p>
+<p><strong>A high-performance, near-zero-footprint Linux and macOS system monitor — built in Rust.</strong></p>
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.75%2B-orange.svg" alt="Rust 1.75+"></a>
   <a href="https://github.com/gurjarchetan/syswatch/releases"><img src="https://img.shields.io/github/v/release/gurjarchetan/syswatch" alt="Latest Release"></a>
   <a href="https://github.com/gurjarchetan/syswatch/stargazers"><img src="https://img.shields.io/github/stars/gurjarchetan/syswatch?style=social" alt="Stars"></a>
-  <img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Platform: Linux">
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg" alt="Platform: Linux | macOS">
 </p>
 
 <br>
@@ -35,12 +35,14 @@
   - [F3 — Network](#f3--network)
   - [F4 — Disk](#f4--disk)
 - [Installation](#installation)
+  - [One-liner (Linux + macOS)](#option-0--one-liner-linux--macos)
   - [Pre-built .deb (Debian / Ubuntu)](#option-1--pre-built-deb-debian--ubuntu)
   - [Snap package](#option-2--snap-package)
   - [Pre-built .rpm (RHEL / Fedora / Amazon Linux)](#option-3--pre-built-rpm-rhel--fedora--amazon-linux)
-  - [Install script (any distro)](#option-4--install-script-any-linux-distro)
-  - [Build from source](#option-5--build-from-source)
-  - [Arch Linux (AUR)](#option-6--arch-linux-aur)
+  - [macOS Apple Silicon (M1/M2/M3/M4)](#option-4--macos-apple-silicon-m1m2m3m4)
+  - [Install script (any Linux distro)](#option-5--install-script-any-linux-distro)
+  - [Build from source](#option-6--build-from-source)
+  - [Arch Linux (AUR)](#option-7--arch-linux-aur)
 - [Usage](#usage)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Architecture](#architecture)
@@ -246,9 +248,10 @@ sudo yum install ./syswatch-0.7.0-1.x86_64.rpm
 sudo rpm -i syswatch-0.7.0-1.x86_64.rpm
 ```
 
-### Option 4 — macOS (pre-built binary)
+### Option 4 — macOS Apple Silicon (M1/M2/M3/M4)
 
-**Apple Silicon (M1/M2/M3):**
+> Pre-built binaries are available for **Apple Silicon only**. Intel Macs must build from source (see Option 6).
+
 ```bash
 curl -LO https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-macos-aarch64.tar.gz
 tar -xzf syswatch-0.7.0-macos-aarch64.tar.gz
@@ -256,16 +259,10 @@ sudo mv syswatch /usr/local/bin/
 syswatch
 ```
 
-**Intel Mac:**
-```bash
-curl -LO https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-macos-x86_64.tar.gz
-tar -xzf syswatch-0.7.0-macos-x86_64.tar.gz
-sudo mv syswatch /usr/local/bin/
-syswatch
-```
-
-> **First run on macOS:** If Gatekeeper blocks the binary, run:
-> `xattr -d com.apple.quarantine /usr/local/bin/syswatch`
+> **First run on macOS:** Gatekeeper may block the binary. Run once to clear the quarantine flag:
+> ```bash
+> xattr -d com.apple.quarantine /usr/local/bin/syswatch
+> ```
 
 ### Option 5 — Install script (any Linux distro)
 
@@ -293,7 +290,7 @@ cargo install --path .
 syswatch
 ```
 
-### Option 6 — Arch Linux (AUR)
+### Option 7 — Arch Linux (AUR)
 
 ```bash
 yay -S syswatch-bin

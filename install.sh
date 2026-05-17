@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # SysWatch installer — downloads the correct pre-built binary and installs it.
-# Supports: Linux (x86_64, arm64)  and  macOS (Apple Silicon, Intel)
+# Supports: Linux (x86_64, arm64)  and  macOS (Apple Silicon M1/M2/M3/M4 only)
 # Usage:  curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.sh | bash
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -39,11 +39,11 @@ detect_arch() {
       *)             error "Unsupported Linux architecture: $arch. Build from source instead." ;;
     esac
   else
-    # macOS
+    # macOS — Apple Silicon (M1/M2/M3/M4) only
     case "$arch" in
-      x86_64)        echo "x86_64" ;;
       arm64|aarch64) echo "aarch64" ;;
-      *)             error "Unsupported macOS architecture: $arch. Build from source instead." ;;
+      x86_64) error "Intel Macs are not supported. Pre-built binaries are only available for Apple Silicon (M1/M2/M3/M4). Build from source instead: cargo install --git https://github.com/${REPO}" ;;
+      *)      error "Unsupported macOS architecture: $arch. Build from source instead." ;;
     esac
   fi
 }

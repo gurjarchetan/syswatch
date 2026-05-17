@@ -29,10 +29,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             arch: arm64
             platform: linux
-          - os: macos-13
-            target: x86_64-apple-darwin
-            arch: x86_64
-            platform: macos
           - os: macos-14
             target: aarch64-apple-darwin
             arch: aarch64
@@ -67,6 +63,8 @@ jobs:
 
       # ── .tar.gz archive ────────────────────────────────────────────────────
       - name: Create tar.gz archive
+        env:
+          COPYFILE_DISABLE: "1"   # macOS: prevent ._* resource fork files in archive
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           ARCHIVE="${{ env.BINARY_NAME }}-${VERSION}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz"
@@ -170,17 +168,10 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
             ```
 
-            **macOS (manual — Apple Silicon):**
+            **macOS (manual — Apple Silicon M1/M2/M3/M4):**
             ```bash
             curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch-${{ github.ref_name }}-macos-aarch64.tar.gz
             tar -xzf syswatch-${{ github.ref_name }}-macos-aarch64.tar.gz
-            sudo mv syswatch /usr/local/bin/
-            ```
-
-            **macOS (manual — Intel):**
-            ```bash
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch-${{ github.ref_name }}-macos-x86_64.tar.gz
-            tar -xzf syswatch-${{ github.ref_name }}-macos-x86_64.tar.gz
             sudo mv syswatch /usr/local/bin/
             ```
 
@@ -203,8 +194,7 @@ jobs:
             ### Assets
             | File | Description |
             |------|-------------|
-            | `syswatch-*-macos-aarch64.tar.gz` | macOS binary (Apple Silicon M1/M2/M3) |
-            | `syswatch-*-macos-x86_64.tar.gz` | macOS binary (Intel) |
+            | `syswatch-*-macos-aarch64.tar.gz` | macOS binary (Apple Silicon M1/M2/M3/M4) |
             | `syswatch-*-linux-amd64.tar.gz` | Linux binary (x86_64) |
             | `syswatch-*-linux-arm64.tar.gz` | Linux binary (ARM64) |
             | `syswatch_*_amd64.deb` | Debian/Ubuntu package (x86_64) |
