@@ -222,8 +222,9 @@ Downloads the correct binary for your platform, places it in `~/.local/bin`, and
 ### Option 1 — Pre-built `.deb` (Debian / Ubuntu)
 
 ```bash
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.7.0_amd64.deb
-sudo dpkg -i syswatch_0.7.0_amd64.deb
+VERSION=$(curl -fsSL https://api.github.com/repos/gurjarchetan/syswatch/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget "https://github.com/gurjarchetan/syswatch/releases/download/v${VERSION}/syswatch_${VERSION}_amd64.deb"
+sudo dpkg -i "syswatch_${VERSION}_amd64.deb"
 syswatch
 ```
 
@@ -236,16 +237,17 @@ sudo snap install syswatch
 ### Option 3 — Pre-built `.rpm` (RHEL / Fedora / Amazon Linux)
 
 ```bash
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-1.x86_64.rpm
+VERSION=$(curl -fsSL https://api.github.com/repos/gurjarchetan/syswatch/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget "https://github.com/gurjarchetan/syswatch/releases/download/v${VERSION}/syswatch-${VERSION}-1.x86_64.rpm"
 
 # Fedora / RHEL 8+ / Amazon Linux 2023
-sudo dnf install ./syswatch-0.7.0-1.x86_64.rpm
+sudo dnf install "./syswatch-${VERSION}-1.x86_64.rpm"
 
 # CentOS 7 / Amazon Linux 2
-sudo yum install ./syswatch-0.7.0-1.x86_64.rpm
+sudo yum install "./syswatch-${VERSION}-1.x86_64.rpm"
 
 # Raw rpm
-sudo rpm -i syswatch-0.7.0-1.x86_64.rpm
+sudo rpm -i "syswatch-${VERSION}-1.x86_64.rpm"
 ```
 
 ### Option 4 — macOS Apple Silicon (M1/M2/M3/M4)
@@ -253,8 +255,9 @@ sudo rpm -i syswatch-0.7.0-1.x86_64.rpm
 > Pre-built binaries are available for **Apple Silicon only**. Intel Macs must build from source (see Option 6).
 
 ```bash
-curl -LO https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-macos-aarch64.tar.gz
-tar -xzf syswatch-0.7.0-macos-aarch64.tar.gz
+VERSION=$(curl -fsSL https://api.github.com/repos/gurjarchetan/syswatch/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+curl -LO "https://github.com/gurjarchetan/syswatch/releases/download/v${VERSION}/syswatch-${VERSION}-macos-aarch64.tar.gz"
+tar -xzf "syswatch-${VERSION}-macos-aarch64.tar.gz"
 sudo mv syswatch /usr/local/bin/
 syswatch
 ```
@@ -600,13 +603,10 @@ Mount points are discovered automatically via `/proc/mounts`. The I/O sub-row (`
 ### Option 1 — Pre-built `.deb` (Debian / Ubuntu)
 
 ```bash
-# Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch_0.7.0_amd64.deb
-
-# Install
-sudo dpkg -i syswatch_0.7.0_amd64.deb
-
-# Run
+# Download & install the latest release
+VERSION=$(curl -fsSL https://api.github.com/repos/gurjarchetan/syswatch/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget "https://github.com/gurjarchetan/syswatch/releases/download/v${VERSION}/syswatch_${VERSION}_amd64.deb"
+sudo dpkg -i "syswatch_${VERSION}_amd64.deb"
 syswatch
 ```
 
@@ -619,23 +619,20 @@ sudo snap install syswatch
 ### Option 3 — Pre-built `.rpm` (RHEL / CentOS / Amazon Linux / Fedora)
 
 ```bash
-# Download the latest release
-wget https://github.com/gurjarchetan/syswatch/releases/latest/download/syswatch-0.7.0-1.x86_64.rpm
-
-# Install (Amazon Linux / RHEL / CentOS / Fedora)
-sudo rpm -i syswatch-0.7.0-1.x86_64.rpm
+# Download & install the latest release
+VERSION=$(curl -fsSL https://api.github.com/repos/gurjarchetan/syswatch/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget "https://github.com/gurjarchetan/syswatch/releases/download/v${VERSION}/syswatch-${VERSION}-1.x86_64.rpm"
+sudo rpm -i "syswatch-${VERSION}-1.x86_64.rpm"
 # or with dnf (Fedora / RHEL 8+ / Amazon Linux 2023)
-sudo dnf install ./syswatch-0.7.0-1.x86_64.rpm
+sudo dnf install "./syswatch-${VERSION}-1.x86_64.rpm"
 # or with yum (CentOS 7 / Amazon Linux 2)
-sudo yum install ./syswatch-0.7.0-1.x86_64.rpm
-
-# Run
+sudo yum install "./syswatch-${VERSION}-1.x86_64.rpm"
 syswatch
 ```
 
 ### Option 4 — Install script (Linux + macOS)
 
-Works on **all** distributions and macOS — Debian, Ubuntu, RHEL, CentOS, Amazon Linux, Fedora, Arch, Alpine, openSUSE, macOS (Intel + Apple Silicon), and more. No root required.
+Works on **all** distributions and macOS — Debian, Ubuntu, RHEL, CentOS, Amazon Linux, Fedora, Arch, Alpine, openSUSE, macOS (Apple Silicon M1/M2/M3/M4), and more. No root required.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gurjarchetan/syswatch/main/install.sh | bash
