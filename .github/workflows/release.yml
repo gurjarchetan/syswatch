@@ -154,6 +154,10 @@ jobs:
           find artifacts/ -type f | sort | xargs sha256sum > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      - name: Compute version without v-prefix
+        id: ver
+        run: echo "ver=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -172,15 +176,15 @@ jobs:
 
             **macOS (manual — Apple Silicon M1/M2/M3/M4):**
             ```bash
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch-${{ github.ref_name }}-macos-aarch64.tar.gz
-            tar -xzf syswatch-${{ github.ref_name }}-macos-aarch64.tar.gz
+            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch-${{ steps.ver.outputs.ver }}-macos-aarch64.tar.gz
+            tar -xzf syswatch-${{ steps.ver.outputs.ver }}-macos-aarch64.tar.gz
             sudo mv syswatch /usr/local/bin/
             ```
 
             **Debian / Ubuntu (amd64):**
             ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch_${{ github.ref_name }}_amd64.deb
-            sudo dpkg -i syswatch_${{ github.ref_name }}_amd64.deb
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/syswatch_${{ steps.ver.outputs.ver }}_amd64.deb
+            sudo dpkg -i syswatch_${{ steps.ver.outputs.ver }}_amd64.deb
             ```
 
             **One-liner install script (Linux + macOS):**
