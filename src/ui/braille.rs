@@ -123,7 +123,7 @@ fn build_rows(
             let mut braille: u32 = BRAILLE_BASE;
 
             for (sample_val, col_idx) in [(left_val, 0usize), (right_val, 1usize)] {
-                            for (dot_row, &dot_bit) in DOT_MAP[col_idx].iter().enumerate() {
+                for (dot_row, &dot_bit) in DOT_MAP[col_idx].iter().enumerate() {
                     // dot_row 0 = topmost dot in the cell
                     let level = row_top - dot_row; // data level this dot represents
                     if level > row_bot && sample_val >= level {
