@@ -73,10 +73,15 @@ fetch_latest_version() {
 
 download() {
   local url="$1" dest="$2"
+  local http_code
   if command -v curl &>/dev/null; then
-    curl -fsSL --progress-bar -o "$dest" "$url"
+    http_code=$(curl -sSL --progress-bar -w "%{http_code}" -o "$dest" "$url")
+    if [ "$http_code" != "200" ]; then
+      error "Download failed (HTTP ${http_code}): ${url}\n       This platform may not have a pre-built binary in the latest release.\n       See available assets at: https://github.com/${REPO}/releases\n       Or install from source: cargo install --git https://github.com/${REPO}"
+    fi
   else
-    wget -q --show-progress -O "$dest" "$url"
+    wget -q --show-progress -O "$dest" "$url" \
+      || error "Download failed: ${url}\n       See: https://github.com/${REPO}/releases"
   fi
 }
 
